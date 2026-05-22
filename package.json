@@ -1,0 +1,19 @@
+{
+  "name": "octar",
+  "version": "1.0.0",
+  "description": "High-performance message broker",
+  "private": true,
+  "packageManager": "pnpm@10.33.3",
+  "scripts": {
+    "prepare": "lefthook install",
+    "commitlint": "commitlint"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.0.1",
+    "@commitlint/config-conventional": "^21.0.1",
+    "lefthook": "^2.1.8"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["lefthook"]
+  }
+}

@@ -1,0 +1,16 @@
+## Ignore the data directory, which contains the database files
+data
+
+## Ignore environment files with sensitive data
+.env
+.env.local
+.env.*.local
+
+## Ignore the broker executable and log files
+*.exe
+*.err
+*.log
+*.txt
+
+# Ignore node modules
+node_modules

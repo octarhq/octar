@@ -1,0 +1,124 @@
+# OCTAR Broker Configuration — Example Reference
+# ================================================
+#
+# OCTAR runs with zero configuration out of the box — all values have sensible
+# defaults built in. Place this file at configs/config.yaml to override defaults.
+# Environment variables with OCTAR_ prefix override both file and defaults.
+#
+# All duration values accept Go duration strings: "10ms", "1s", "5m", "24h".
+
+#  Logging 
+log:
+  level: "info" # debug, info, warn, error
+
+#  Data Plane (TCP) 
+server:
+  host: "0.0.0.0"
+  port: 7000
+  max_connections: 10000
+  read_timeout: "30s"
+  write_timeout: "10s"
+
+  # Per-connection in-flight credit control.
+  # max_inflight: how many messages one subscriber connection can have outstanding.
+  # global_max: broker-wide cap across all connections (0 = unlimited).
+  inflight:
+    max_inflight: 256
+    global_max: 10000
+
+#  Management API (HTTP) 
+api:
+  host: "0.0.0.0"
+  port: 8080
+
+#  Observability 
+metrics:
+  enabled: true
+  port: 2112
+
+pprof:
+  enabled: true
+  port: 6060
+
+#  Authentication & Authorization
+auth:
+  enabled: true
+
+  # Session management
+  session:
+    timeout: "24h"
+    max_sessions: 100000
+    cleanup_interval: "5m"
+
+  # Providers - order matters (priority)
+  providers:
+    # Username/Password authentication (TCP data plane, HTTP API)
+    password:
+      enabled: true
+      priority: 10
+      bcrypt_cost: 12
+
+    # API Key authentication (automation, services)
+    api_key:
+      enabled: true
+      priority: 20
+      prefix: "flw_live_"
+
+    # JWT authentication (dashboard, frontend, stateless sessions)
+    jwt:
+      enabled: true
+      key_type: "HMAC"
+      hmac_secret: "octar-jwt-signing-key-change-in-production-min-32-chars"
+      access_token_ttl: 900    # 15 minutes in seconds
+      refresh_token_ttl: 604800 # 7 days in seconds
+
+  # Default admin user credentials (auto-created if no users exist)
+  # Override via environment variables: OCTAR_AUTH_DEFAULT_USERNAME, OCTAR_AUTH_DEFAULT_PASSWORD
+  default_admin:
+    username: "admin"
+    password: "admin"  # CHANGE THIS IN PRODUCTION!
+
+  # Rate limiting
+  rate_limit:
+    login_attempts:
+      max: 5
+      window: "1m"
+      lockout: "15m"
+    auth_abuse:
+      max: 100
+      window: "1m"
+
+#  Persistence 
+storage:
+  data_dir: "./data"
+
+  wal:
+    # Flush buffered events after this interval even if the buffer isn't full.
+    flush_interval: "10ms"
+    # Flush immediately when this many events are buffered (regardless of interval).
+    flush_max_messages: 1000
+    # Rotate to a new segment file when the active segment reaches this size (512 MB).
+    segment_max_bytes: 536870912
+    # Call fsync after each flush. Set false for maximum throughput with lower durability.
+    sync: true
+    # Write a snapshot of queue state for fast recovery every N seconds.
+    snapshot_interval: "60s"
+
+  snapshot:
+    # How often to write an index snapshot to speed up crash recovery.
+    interval: "5m"
+
+#  Default Group Settings 
+# Applied to groups that don't have an explicit configuration.
+defaults:
+  group:
+    # 1 = sequential (one message in-flight per group at a time).
+    parallelism: 1
+    # How long a dispatched message can remain unacknowledged before the lease expires
+    # and the message is returned to pending (handles consumer crashes).
+    lease_timeout: "30s"
+    retry:
+      max_attempts: 3
+      backoff: "exponential"   # fixed | linear | exponential
+      initial_delay: "1s"
+      max_delay: "5m"
