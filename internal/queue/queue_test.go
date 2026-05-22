@@ -1715,7 +1715,7 @@ func TestQueue_RepeatedFailAndNext(t *testing.T) {
 	now = now.Add(time.Hour)
 	if next != nil {
 		q.TryDispatchOne("retry-loop", now)
-		dlqName, dlqMsg, next = q.FailAndNext("retry-loop", next.ID, "attempt-2", now)
+		_, _, next = q.FailAndNext("retry-loop", next.ID, "attempt-2", now)
 		if next != nil {
 			t.Logf("retry 2: next=%s", next.ID)
 		}
