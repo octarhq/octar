@@ -93,7 +93,7 @@ func (s *Store) CreateQueue(namespaceID int, name, config string) (*Queue, error
 	id, _ := res.LastInsertId()
 
 	var q Queue
-	s.db.QueryRow(
+	_ = s.db.QueryRow(
 		"SELECT id, namespace_id, name, config, created_at FROM queues WHERE id = ?", id,
 	).Scan(&q.ID, &q.NamespaceID, &q.Name, &q.Config, &q.CreatedAt)
 	return &q, nil

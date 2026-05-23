@@ -18,9 +18,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/83codes/octar/internal/auth/identity"
-	"github.com/83codes/octar/internal/config"
-	"github.com/83codes/octar/internal/db"
+	"github.com/octarhq/octar/internal/auth/identity"
+	"github.com/octarhq/octar/internal/config"
+	"github.com/octarhq/octar/internal/db"
 )
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -33,8 +33,8 @@ type Claims struct {
 	Subject   string `json:"sub"`
 	SubjectTy string `json:"sty,omitempty"`
 
-	AccountID  string `json:"acc,omitempty"`
-	Namespace  string `json:"ns,omitempty"`
+	AccountID string `json:"acc,omitempty"`
+	Namespace string `json:"ns,omitempty"`
 
 	Roles      []string            `json:"roles,omitempty"`
 	Perms      []string            `json:"perms,omitempty"`
@@ -83,13 +83,13 @@ type Tokens struct {
 
 // RefreshToken is the payload embedded in a refresh token (signed separately).
 type RefreshToken struct {
-	SubjectID   string                  `json:"sid"`
-	SubjectType identity.SubjectType    `json:"sty"`
-	AccountID   string                  `json:"acc"`
-	Roles       []string                `json:"roles"`
-	Namespaces  map[string][]string     `json:"ns_perms"`
-	IssuedAt    int64                   `json:"iat"`
-	ExpiresAt   int64                   `json:"exp"`
+	SubjectID   string               `json:"sid"`
+	SubjectType identity.SubjectType `json:"sty"`
+	AccountID   string               `json:"acc"`
+	Roles       []string             `json:"roles"`
+	Namespaces  map[string][]string  `json:"ns_perms"`
+	IssuedAt    int64                `json:"iat"`
+	ExpiresAt   int64                `json:"exp"`
 }
 
 // ── Manager ───────────────────────────────────────────────────────────────────
@@ -376,9 +376,13 @@ func (m *Manager) signWithKey(claims Claims) (string, error) {
 func (m *Manager) sign(data []byte) ([]byte, error) {
 	switch k := m.keyStore.privateKey.(type) {
 	case *rsa.PrivateKey:
-		return rsa.SignPKCS1v15(rand.Reader, k, crypto.SHA256, data)
+		h := crypto.SHA256.New()
+		h.Write(data)
+		return rsa.SignPKCS1v15(rand.Reader, k, crypto.SHA256, h.Sum(nil))
 	case *ecdsa.PrivateKey:
-		return ecdsa.SignASN1(rand.Reader, k, data)
+		h := crypto.SHA256.New()
+		h.Write(data)
+		return ecdsa.SignASN1(rand.Reader, k, h.Sum(nil))
 	case ed25519.PrivateKey:
 		return k.Sign(rand.Reader, data, nil)
 	default:
@@ -418,9 +422,13 @@ func (m *Manager) verifyWithKey(token string) (*Claims, error) {
 func (m *Manager) verify(data, sig []byte) error {
 	switch k := m.keyStore.publicKey.(type) {
 	case *rsa.PublicKey:
-		return rsa.VerifyPKCS1v15(k, crypto.SHA256, data, sig)
+		h := crypto.SHA256.New()
+		h.Write(data)
+		return rsa.VerifyPKCS1v15(k, crypto.SHA256, h.Sum(nil), sig)
 	case *ecdsa.PublicKey:
-		if !ecdsa.VerifyASN1(k, data, sig) {
+		h := crypto.SHA256.New()
+		h.Write(data)
+		if !ecdsa.VerifyASN1(k, h.Sum(nil), sig) {
 			return fmt.Errorf("ecdsa verification failed")
 		}
 		return nil

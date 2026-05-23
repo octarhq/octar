@@ -79,6 +79,21 @@ The management API provides a RESTful HTTP interface for managing namespaces, qu
 | `GET` | `/queues/{ns}/{name}/stats` | Queue statistics |
 | `GET` | `/queues/{ns}/{name}/stats/{key}` | Per-group statistics |
 
+#### Queue durability
+
+`POST /queues` accepts an optional `durable` field (default: `true`):
+
+```json
+{ "name": "my-queue", "namespace": "main", "durable": false }
+```
+
+| `durable` | Behaviour | Recommended for |
+|-----------|-----------|-----------------|
+| `true` (default) | fsync after each WAL batch — survives power loss | Orders, payments, emails |
+| `false` | OS buffer only — 5–10x faster, survives process crash | Notifications, cache invalidation, analytics |
+
+The effective value is returned in `GET /queues/{ns}/{name}` responses.
+
 ### Consumer Groups
 
 | Method | Path | Description |

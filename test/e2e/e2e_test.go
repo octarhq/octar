@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/83codes/octar/internal/auth"
-	"github.com/83codes/octar/internal/broker"
-	"github.com/83codes/octar/internal/config"
-	"github.com/83codes/octar/internal/db"
-	"github.com/83codes/octar/internal/protocol"
-	"github.com/83codes/octar/internal/queue"
+	"github.com/octarhq/octar/internal/auth"
+	"github.com/octarhq/octar/internal/broker"
+	"github.com/octarhq/octar/internal/config"
+	"github.com/octarhq/octar/internal/db"
+	"github.com/octarhq/octar/internal/protocol"
+	"github.com/octarhq/octar/internal/queue"
 )
 
 func startTestBroker(t *testing.T) (*broker.Broker, int, func()) {
@@ -42,10 +42,10 @@ func startTestBroker(t *testing.T) (*broker.Broker, int, func()) {
 		Storage: config.StorageConfig{
 			DataDir: dataDir,
 			WAL: config.WALConfig{
-				FlushInterval:    50 * time.Millisecond,
-				FlushMaxMessages: 100,
+				FlushInterval:    25 * time.Millisecond, // alinhado com o default de produção
+				FlushMaxMessages: 1000,                  // era 100 — lotes maiores, menos flushes
 				SegmentMaxBytes:  64 << 20,
-				Sync:             false,
+				Durable:          false, // mantém false em testes para velocidade
 				SnapshotInterval: 60 * time.Second,
 			},
 		},
@@ -57,8 +57,10 @@ func startTestBroker(t *testing.T) (*broker.Broker, int, func()) {
 			},
 			Providers: config.ProvidersConfig{
 				Password: config.PasswordProviderConfig{
-					Enabled:  true,
-					Priority: 10,
+					Enabled:    true,
+					Priority:   10,
+					BcryptCost: 4, // custo mínimo — ~3ms vs ~300ms com cost=12
+					// Em produção usa o default (12). Em teste, bcrypt não é o que queremos medir.
 				},
 			},
 		},
@@ -86,7 +88,7 @@ func startTestBroker(t *testing.T) (*broker.Broker, int, func()) {
 	}
 
 	return b, port, func() {
-		b.Stop()
+		_ = b.Stop()
 		store.Close()
 	}
 }

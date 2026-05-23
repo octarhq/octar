@@ -33,8 +33,7 @@ func TestDisk_FullDisk(t *testing.T) {
 	// Attempt to publish — should fail or go to WAL error state
 	_, err := h.Publish("test-ns", "disk-full", "g1", []byte("after-failure"))
 	if err == nil {
-		// The publish itself may succeed (in-memory), but WAL append will fail
-		// We need to wait for Async WAL failure detection
+		time.Sleep(500 * time.Millisecond)
 	}
 	time.Sleep(500 * time.Millisecond)
 
@@ -47,7 +46,7 @@ func TestDisk_FullDisk(t *testing.T) {
 	}
 
 	// Restore permissions for cleanup
-	os.Chmod(qDir, 0755)
+	_ = os.Chmod(qDir, 0755)
 }
 
 // TestDisk_ReadOnlyLogFile tests behavior when a WAL segment becomes read-only
@@ -82,7 +81,7 @@ func TestDisk_ReadOnlyLogFile(t *testing.T) {
 
 	// Attempt more publishes — should fail
 	for i := 0; i < 3; i++ {
-		h.Publish("test-ns", "disk-readonly", "g1", []byte("post"))
+		_, _ = h.Publish("test-ns", "disk-readonly", "g1", []byte("post"))
 	}
 	time.Sleep(500 * time.Millisecond)
 
@@ -94,10 +93,10 @@ func TestDisk_ReadOnlyLogFile(t *testing.T) {
 	}
 
 	// Restore permissions for cleanup
-	os.Chmod(qDir, 0755)
+	_ = os.Chmod(qDir, 0755)
 	for _, e := range entries {
 		if !e.IsDir() && filepath.Ext(e.Name()) == ".log" {
-			os.Chmod(filepath.Join(qDir, e.Name()), 0644)
+			_ = os.Chmod(filepath.Join(qDir, e.Name()), 0644)
 		}
 	}
 }
@@ -142,7 +141,7 @@ func TestDisk_RecoveryAfterDiskFailure(t *testing.T) {
 	}
 
 	h.Close()
-	os.Chmod(qDir, 0755)
+	_ = os.Chmod(qDir, 0755)
 }
 
 // TestDisk_WALHealthyAfterNormalOps verifies WAL.Healthy() returns true

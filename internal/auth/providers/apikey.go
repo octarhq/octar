@@ -7,9 +7,9 @@ import (
 	"encoding/hex"
 	"strings"
 
-	"github.com/83codes/octar/internal/auth/authenticator"
-	"github.com/83codes/octar/internal/auth/identity"
-	"github.com/83codes/octar/internal/config"
+	"github.com/octarhq/octar/internal/auth/authenticator"
+	"github.com/octarhq/octar/internal/auth/identity"
+	"github.com/octarhq/octar/internal/config"
 )
 
 type APIKeyAuthenticator struct {
@@ -18,12 +18,12 @@ type APIKeyAuthenticator struct {
 }
 
 type APIKeyEntry struct {
-	Hash         string
-	SubjectID    string
-	SubjectType  identity.SubjectType
-	Namespace    string
-	Permissions  []string
-	Prefix       string
+	Hash        string
+	SubjectID   string
+	SubjectType identity.SubjectType
+	Namespace   string
+	Permissions []string
+	Prefix      string
 }
 
 func NewAPIKeyAuthenticator(cfg config.APIKeyProviderConfig) *APIKeyAuthenticator {
@@ -64,14 +64,14 @@ func (a *APIKeyAuthenticator) Authenticate(ctx context.Context, req authenticato
 	}
 
 	id := &identity.Identity{
-		SubjectID:    entry.SubjectID,
-		SubjectType:  entry.SubjectType,
-		AccountID:    entry.SubjectID,
-		Namespace:    entry.Namespace,
-		Roles:        []string{"service"},
-		Permissions:  identity.PermissionSetFromStrings(entry.Permissions),
-		AuthMethod:   identity.AuthMethodAPIKey,
-		Namespaces:   map[string][]string{entry.Namespace: entry.Permissions},
+		SubjectID:   entry.SubjectID,
+		SubjectType: entry.SubjectType,
+		AccountID:   entry.SubjectID,
+		Namespace:   entry.Namespace,
+		Roles:       []string{"service"},
+		Permissions: identity.PermissionSetFromStrings(entry.Permissions),
+		AuthMethod:  identity.AuthMethodAPIKey,
+		Namespaces:  map[string][]string{entry.Namespace: entry.Permissions},
 	}
 
 	return id, "", nil
@@ -79,12 +79,12 @@ func (a *APIKeyAuthenticator) Authenticate(ctx context.Context, req authenticato
 
 func (a *APIKeyAuthenticator) AddKey(key, subjectID, namespace string, perms []string) {
 	entry := &APIKeyEntry{
-		Hash:         hashKey(key),
-		SubjectID:    subjectID,
-		SubjectType:  identity.SubjectService,
-		Namespace:    namespace,
-		Permissions:  perms,
-		Prefix:       a.cfg.Prefix,
+		Hash:        hashKey(key),
+		SubjectID:   subjectID,
+		SubjectType: identity.SubjectService,
+		Namespace:   namespace,
+		Permissions: perms,
+		Prefix:      a.cfg.Prefix,
 	}
 	a.keyHash[entry.Hash] = entry
 }
@@ -114,7 +114,7 @@ func GenerateAPIKey(prefix string) string {
 func generateRandomSuffix(n int) string {
 	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
 	b := make([]byte, n)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	for i := 0; i < n; i++ {
 		b[i] = charset[int(b[i])%len(charset)]
 	}

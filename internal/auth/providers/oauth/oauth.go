@@ -11,9 +11,9 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/83codes/octar/internal/auth/authenticator"
-	"github.com/83codes/octar/internal/auth/identity"
-	"github.com/83codes/octar/internal/config"
+	"github.com/octarhq/octar/internal/auth/authenticator"
+	"github.com/octarhq/octar/internal/auth/identity"
+	"github.com/octarhq/octar/internal/config"
 )
 
 type OAuthProvider struct {
@@ -240,6 +240,6 @@ func joinScopes(scopes []string) string {
 
 func GenerateState() string {
 	b := make([]byte, 32)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	return base64.URLEncoding.EncodeToString(b)
 }

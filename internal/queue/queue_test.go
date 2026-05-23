@@ -118,7 +118,7 @@ func TestQueue_TryDispatchOne(t *testing.T) {
 	t.Parallel()
 	q := newTestQueue(t, "testq", "testns")
 
-	q.Publish("group-a", []byte("msg1"))
+	_, _ = q.Publish("group-a", []byte("msg1"))
 	now := time.Now()
 
 	msg := q.TryDispatchOne("group-a", now)
@@ -147,7 +147,7 @@ func TestQueue_TryDispatchOneEmpty(t *testing.T) {
 		t.Fatal("expected nil for nonexistent group")
 	}
 
-	q.Publish("empty-test", []byte("msg"))
+	_, _ = q.Publish("empty-test", []byte("msg"))
 	q.TryDispatchOne("empty-test", now)
 	// Queue should be empty after dispatch (parallelism=1, msg in processing)
 	if msg := q.TryDispatchOne("empty-test", now); msg != nil {
@@ -186,7 +186,7 @@ func TestQueue_CompleteErrors(t *testing.T) {
 		t.Fatal("expected error for nonexistent group")
 	}
 
-	q.Publish("group-a", []byte("msg"))
+	_, _ = q.Publish("group-a", []byte("msg"))
 	if err := q.Complete("group-a", "nonexistent-id"); err == nil {
 		t.Fatal("expected error for nonexistent message ID")
 	}
@@ -198,8 +198,8 @@ func TestQueue_CompleteAndNext(t *testing.T) {
 	t.Parallel()
 	q := newTestQueue(t, "testq", "testns")
 
-	q.Publish("group-a", []byte("msg1"))
-	q.Publish("group-a", []byte("msg2"))
+	_, _ = q.Publish("group-a", []byte("msg1"))
+	_, _ = q.Publish("group-a", []byte("msg2"))
 
 	now := time.Now()
 	first := q.TryDispatchOne("group-a", now)
@@ -374,8 +374,8 @@ func TestQueue_FailAndNext(t *testing.T) {
 		},
 	})
 
-	q.Publish("fan-group", []byte("msg1"))
-	q.Publish("fan-group", []byte("msg2"))
+	_, _ = q.Publish("fan-group", []byte("msg1"))
+	_, _ = q.Publish("fan-group", []byte("msg2"))
 
 	now := time.Now()
 	first := q.TryDispatchOne("fan-group", now)
@@ -409,8 +409,8 @@ func TestQueue_FailAndNextDLQ(t *testing.T) {
 		},
 	})
 
-	q.Publish("fn-group", []byte("msg1"))
-	q.Publish("fn-group", []byte("msg2"))
+	_, _ = q.Publish("fn-group", []byte("msg1"))
+	_, _ = q.Publish("fn-group", []byte("msg2"))
 
 	now := time.Now()
 	first := q.TryDispatchOne("fn-group", now)
@@ -486,7 +486,7 @@ func TestQueue_ReturnToPendingNonexistentMessage(t *testing.T) {
 	t.Parallel()
 	q := newTestQueue(t, "testq", "testns")
 
-	q.Publish("group-a", []byte("msg"))
+	_, _ = q.Publish("group-a", []byte("msg"))
 	now := time.Now()
 	q.TryDispatchOne("group-a", now)
 
@@ -545,7 +545,7 @@ func TestQueue_SweepExpiredLeasesNoExpiry(t *testing.T) {
 	t.Parallel()
 	q := newTestQueue(t, "testq", "testns")
 
-	q.Publish("group-a", []byte("msg"))
+	_, _ = q.Publish("group-a", []byte("msg"))
 	now := time.Now()
 
 	// Nothing dispatched, no leases
@@ -593,7 +593,7 @@ func TestQueue_WildcardConfig(t *testing.T) {
 	})
 
 	for i := 0; i < 5; i++ {
-		q.Publish("group-123", []byte("msg"))
+		_, _ = q.Publish("group-123", []byte("msg"))
 	}
 
 	now := time.Now()
@@ -622,9 +622,9 @@ func TestQueue_WildcardMultiplePatterns(t *testing.T) {
 		Parallelism: 7,
 	})
 
-	q.Publish("tenant-abc", []byte("msg"))
-	q.Publish("tenant-abc", []byte("msg2"))
-	q.Publish("tenant-abc", []byte("msg3"))
+	_, _ = q.Publish("tenant-abc", []byte("msg"))
+	_, _ = q.Publish("tenant-abc", []byte("msg2"))
+	_, _ = q.Publish("tenant-abc", []byte("msg3"))
 
 	now := time.Now()
 	for i := 0; i < 3; i++ {
@@ -636,8 +636,8 @@ func TestQueue_WildcardMultiplePatterns(t *testing.T) {
 		t.Fatal("4th tenant dispatch should be blocked")
 	}
 
-	q.Publish("specific-x", []byte("s1"))
-	q.Publish("specific-x", []byte("s2"))
+	_, _ = q.Publish("specific-x", []byte("s1"))
+	_, _ = q.Publish("specific-x", []byte("s2"))
 
 	for i := 0; i < 2; i++ {
 		if msg := q.TryDispatchOne("specific-x", now); msg == nil {
@@ -664,7 +664,7 @@ func TestQueue_ExactMatchWins(t *testing.T) {
 	})
 
 	for i := 0; i < 10; i++ {
-		q.Publish("group-123", []byte("msg"))
+		_, _ = q.Publish("group-123", []byte("msg"))
 	}
 
 	now := time.Now()
@@ -687,8 +687,8 @@ func TestQueue_DefaultConfigFallback(t *testing.T) {
 	t.Parallel()
 	q := newTestQueue(t, "testq", "testns")
 
-	q.Publish("default-group", []byte("msg1"))
-	q.Publish("default-group", []byte("msg2"))
+	_, _ = q.Publish("default-group", []byte("msg1"))
+	_, _ = q.Publish("default-group", []byte("msg2"))
 
 	now := time.Now()
 	msg1 := q.TryDispatchOne("default-group", now)
@@ -700,7 +700,7 @@ func TestQueue_DefaultConfigFallback(t *testing.T) {
 		t.Fatal("second dispatch should be blocked (default parallelism=1)")
 	}
 
-	q.Complete("default-group", msg1.ID)
+	_ = q.Complete("default-group", msg1.ID)
 
 	msg2 := q.TryDispatchOne("default-group", now)
 	if msg2 == nil {
@@ -737,7 +737,7 @@ func TestQueue_ConcurrentPublishComplete(t *testing.T) {
 			}
 			now := time.Now()
 			if d := q.TryDispatchOne("concurrent", now); d != nil {
-				q.Complete("concurrent", msg.ID)
+				_ = q.Complete("concurrent", msg.ID)
 			}
 		}()
 	}
@@ -768,7 +768,7 @@ func TestQueue_ConcurrentDifferentGroups(t *testing.T) {
 				}
 				now := time.Now()
 				if d := q.TryDispatchOne(k, now); d != nil {
-					q.Complete(k, msg.ID)
+					_ = q.Complete(k, msg.ID)
 				}
 			}(key)
 		}
@@ -785,7 +785,7 @@ func TestQueue_PageGroupStats(t *testing.T) {
 	n := 55
 	for i := 0; i < n; i++ {
 		key := fmt.Sprintf("page-group-%03d", i)
-		q.Publish(key, []byte("msg"))
+		_, _ = q.Publish(key, []byte("msg"))
 	}
 
 	var all []GroupStats
@@ -847,7 +847,7 @@ func TestQueue_ParallelismLimit(t *testing.T) {
 	})
 
 	for i := 0; i < 3; i++ {
-		q.Publish("parallel-group", []byte("msg"))
+		_, _ = q.Publish("parallel-group", []byte("msg"))
 	}
 
 	now := time.Now()
@@ -862,7 +862,7 @@ func TestQueue_ParallelismLimit(t *testing.T) {
 		t.Fatal("expected third dispatch to be blocked (parallelism=2)")
 	}
 
-	q.Complete("parallel-group", msg1.ID)
+	_ = q.Complete("parallel-group", msg1.ID)
 	msg3 = q.TryDispatchOne("parallel-group", now)
 	if msg3 == nil {
 		t.Fatal("expected third dispatch after completing one")
@@ -874,8 +874,8 @@ func TestQueue_ParallelismSequential(t *testing.T) {
 	q := newTestQueue(t, "testq", "testns")
 
 	// parallelism=1 is sequential
-	q.Publish("seq-group", []byte("m1"))
-	q.Publish("seq-group", []byte("m2"))
+	_, _ = q.Publish("seq-group", []byte("m1"))
+	_, _ = q.Publish("seq-group", []byte("m2"))
 
 	now := time.Now()
 	m1 := q.TryDispatchOne("seq-group", now)
@@ -886,7 +886,7 @@ func TestQueue_ParallelismSequential(t *testing.T) {
 		t.Fatal("expected blocked (sequential)")
 	}
 
-	q.Complete("seq-group", m1.ID)
+	_ = q.Complete("seq-group", m1.ID)
 	m2 := q.TryDispatchOne("seq-group", now)
 	if m2 == nil {
 		t.Fatal("expected dispatch after complete")
@@ -948,9 +948,9 @@ func TestQueue_QueueStats(t *testing.T) {
 	t.Parallel()
 	q := newTestQueue(t, "testq", "testns")
 
-	q.Publish("group-a", []byte("a1"))
-	q.Publish("group-a", []byte("a2"))
-	q.Publish("group-b", []byte("b1"))
+	_, _ = q.Publish("group-a", []byte("a1"))
+	_, _ = q.Publish("group-a", []byte("a2"))
+	_, _ = q.Publish("group-b", []byte("b1"))
 
 	stats := q.Stats()
 	if stats.Name != "testq" {
@@ -1008,9 +1008,9 @@ func TestQueue_Snapshot(t *testing.T) {
 	t.Parallel()
 	q := newTestQueue(t, "snapq", "snapns")
 
-	q.Publish("g1", []byte("m1"))
-	q.Publish("g1", []byte("m2"))
-	q.Publish("g2", []byte("m3"))
+	_, _ = q.Publish("g1", []byte("m1"))
+	_, _ = q.Publish("g1", []byte("m2"))
+	_, _ = q.Publish("g2", []byte("m3"))
 
 	q.SetGroupConfig(GroupConfig{Key: "g1", Parallelism: 2})
 	q.SetGroupConfig(GroupConfig{Key: "g3", Parallelism: 5})
@@ -1141,7 +1141,7 @@ func TestQueue_GroupToken(t *testing.T) {
 	t.Parallel()
 	q := newTestQueue(t, "testq", "testns")
 
-	q.Publish("token-group", []byte("msg"))
+	_, _ = q.Publish("token-group", []byte("msg"))
 
 	token := q.GetGroupToken("token-group")
 	if token == nil {
@@ -1200,7 +1200,7 @@ func TestQueue_ReplayLeaseNotFound(t *testing.T) {
 		t.Fatal("expected false for nonexistent group")
 	}
 
-	q.Publish("replay-group", []byte("msg"))
+	_, _ = q.Publish("replay-group", []byte("msg"))
 	if q.ReplayLease("replay-group", "nonexistent-id", now) {
 		t.Fatal("expected false for nonexistent message")
 	}
@@ -1241,7 +1241,7 @@ func TestQueue_PublishAfterDispatch(t *testing.T) {
 	t.Parallel()
 	q := newTestQueue(t, "testq", "testns")
 
-	q.Publish("group-a", []byte("first"))
+	_, _ = q.Publish("group-a", []byte("first"))
 	now := time.Now()
 	q.TryDispatchOne("group-a", now)
 
@@ -1268,8 +1268,8 @@ func TestQueue_DrainGroup(t *testing.T) {
 	t.Parallel()
 	q := newTestQueue(t, "testq", "testns")
 
-	q.Publish("drain-group", []byte("msg1"))
-	q.Publish("drain-group", []byte("msg2"))
+	_, _ = q.Publish("drain-group", []byte("msg1"))
+	_, _ = q.Publish("drain-group", []byte("msg2"))
 
 	now := time.Now()
 	batch, _, hasWake, stillPending := q.DrainGroup("drain-group", now)
@@ -1324,7 +1324,7 @@ func TestQueue_SetGroupConfigUpdatesExistingGroup(t *testing.T) {
 	t.Parallel()
 	q := newTestQueue(t, "testq", "testns")
 
-	q.Publish("my-group", []byte("msg"))
+	_, _ = q.Publish("my-group", []byte("msg"))
 
 	q.SetGroupConfig(GroupConfig{
 		Key:         "my-group",
@@ -1332,7 +1332,7 @@ func TestQueue_SetGroupConfigUpdatesExistingGroup(t *testing.T) {
 	})
 
 	for i := 0; i < 5; i++ {
-		q.Publish("my-group", []byte("msg"))
+		_, _ = q.Publish("my-group", []byte("msg"))
 	}
 
 	now := time.Now()
@@ -1352,8 +1352,8 @@ func TestQueue_SetGroupConfigWildcardUpdatesExisting(t *testing.T) {
 	t.Parallel()
 	q := newTestQueue(t, "testq", "testns")
 
-	q.Publish("tenant-1", []byte("msg"))
-	q.Publish("tenant-2", []byte("msg"))
+	_, _ = q.Publish("tenant-1", []byte("msg"))
+	_, _ = q.Publish("tenant-2", []byte("msg"))
 
 	q.SetGroupConfig(GroupConfig{
 		Key:         "tenant-*",
@@ -1361,10 +1361,10 @@ func TestQueue_SetGroupConfigWildcardUpdatesExisting(t *testing.T) {
 	})
 
 	for i := 0; i < 3; i++ {
-		q.Publish("tenant-1", []byte("m"))
+		_, _ = q.Publish("tenant-1", []byte("m"))
 	}
 	for i := 0; i < 3; i++ {
-		q.Publish("tenant-2", []byte("m"))
+		_, _ = q.Publish("tenant-2", []byte("m"))
 	}
 
 	now := time.Now()
@@ -1404,9 +1404,9 @@ func TestQueue_GroupCount(t *testing.T) {
 		t.Fatalf("expected GroupCount=0, got %d", c)
 	}
 
-	q.Publish("group-a", []byte(""))
-	q.Publish("group-b", []byte(""))
-	q.Publish("group-a", []byte("")) // same group, no change
+	_, _ = q.Publish("group-a", []byte(""))
+	_, _ = q.Publish("group-b", []byte(""))
+	_, _ = q.Publish("group-a", []byte("")) // same group, no change
 
 	if c := q.GroupCount(); c != 2 {
 		t.Fatalf("expected GroupCount=2, got %d", c)
@@ -1419,7 +1419,7 @@ func TestQueue_ReplayLeaseAfterDispatch(t *testing.T) {
 	t.Parallel()
 	q := newTestQueue(t, "testq", "testns")
 
-	q.Publish("replay-group", []byte("msg"))
+	_, _ = q.Publish("replay-group", []byte("msg"))
 	now := time.Now()
 	q.TryDispatchOne("replay-group", now)
 
@@ -1435,7 +1435,7 @@ func TestQueue_ExportImportState(t *testing.T) {
 	t.Parallel()
 	q := newTestQueue(t, "testq", "testns")
 
-	q.Publish("group-a", []byte("payload"))
+	_, _ = q.Publish("group-a", []byte("payload"))
 
 	state := q.ExportState()
 	if len(state.Groups) != 1 {
@@ -1463,7 +1463,7 @@ func TestQueue_ConcurrentPublishDispatch(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < 100; i++ {
-				q.Publish("conc-group", []byte("data"))
+				_, _ = q.Publish("conc-group", []byte("data"))
 			}
 		}()
 	}
@@ -1531,7 +1531,7 @@ func TestQueue_DispatchCompleteRace(t *testing.T) {
 			defer wg.Done()
 			disp := q.TryDispatchOne("race-group", time.Now())
 			if disp != nil {
-				q.Complete("race-group", disp.ID)
+				_ = q.Complete("race-group", disp.ID)
 			}
 		}(m)
 	}
@@ -1569,7 +1569,7 @@ func TestQueue_DeepQueueOrder(t *testing.T) {
 		if msg == nil {
 			t.Fatalf("dispatch %d returned nil", i)
 		}
-		q.Complete("order-group", msg.ID)
+		_ = q.Complete("order-group", msg.ID)
 	}
 
 	stats, _ = q.GetGroupStats("order-group")

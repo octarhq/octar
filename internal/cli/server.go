@@ -4,9 +4,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/83codes/octar/internal/app"
-	"github.com/83codes/octar/internal/config"
-	"github.com/83codes/octar/internal/logger"
+	"github.com/octarhq/octar/internal/app"
+	"github.com/octarhq/octar/internal/config"
+	"github.com/octarhq/octar/internal/logger"
 	"github.com/spf13/cobra"
 )
 

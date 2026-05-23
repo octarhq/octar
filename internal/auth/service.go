@@ -2,17 +2,18 @@ package auth
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/83codes/octar/internal/auth/authenticator"
-	"github.com/83codes/octar/internal/auth/audit"
-	"github.com/83codes/octar/internal/auth/identity"
-	"github.com/83codes/octar/internal/auth/jwt"
-	"github.com/83codes/octar/internal/auth/providers"
-	"github.com/83codes/octar/internal/auth/providers/mtls"
-	"github.com/83codes/octar/internal/auth/providers/oauth"
-	"github.com/83codes/octar/internal/auth/rbac"
-	"github.com/83codes/octar/internal/config"
-	"github.com/83codes/octar/internal/db"
+	"github.com/octarhq/octar/internal/auth/audit"
+	"github.com/octarhq/octar/internal/auth/authenticator"
+	"github.com/octarhq/octar/internal/auth/identity"
+	"github.com/octarhq/octar/internal/auth/jwt"
+	"github.com/octarhq/octar/internal/auth/providers"
+	"github.com/octarhq/octar/internal/auth/providers/mtls"
+	"github.com/octarhq/octar/internal/auth/providers/oauth"
+	"github.com/octarhq/octar/internal/auth/rbac"
+	"github.com/octarhq/octar/internal/config"
+	"github.com/octarhq/octar/internal/db"
 )
 
 type Service struct {
@@ -46,7 +47,7 @@ func NewService(cfg config.AuthConfig, store *db.Store, dataDir string) *Service
 				Reason:      event.Reason,
 				Metadata:    event.Metadata,
 			}
-			store.AppendAuditEvent(dbEvent)
+			_ = store.AppendAuditEvent(dbEvent)
 		}, 1000),
 		policy: rbac.NewPolicy(),
 	}
@@ -98,14 +99,27 @@ func (s *Service) RefreshTokens(refreshToken string) (*jwt.Tokens, error) {
 }
 
 func (s *Service) VerifyToken(token string) (*identity.Identity, error) {
-	if s.jwtMgr == nil {
-		return nil, nil
+	// Try JWT first
+	if s.jwtMgr != nil {
+		claims, err := s.jwtMgr.VerifyAccessToken(token)
+		if err == nil {
+			return claims.ToIdentity(), nil
+		}
+		// JWT verification failed, continue to try API key
 	}
-	claims, err := s.jwtMgr.VerifyAccessToken(token)
-	if err != nil {
-		return nil, err
+
+	// Try API key
+	if s.apiKeyAuth != nil {
+		id, _, err := s.apiKeyAuth.Authenticate(context.Background(), authenticator.AuthRequest{
+			APIKey: token,
+		})
+		if err == nil && id != nil {
+			return id, nil
+		}
 	}
-	return claims.ToIdentity(), nil
+
+	// If both failed, return error
+	return nil, fmt.Errorf("invalid token: neither JWT nor API key matched")
 }
 
 func (s *Service) AuthenticateTCP(ctx context.Context, remoteAddr, username, password, namespace string) (*identity.Identity, error) {

@@ -35,27 +35,28 @@ type WALConfig struct {
 	FlushInterval      time.Duration
 	FlushMaxMessages   int
 	SegmentMaxBytes    int64
-	Sync               bool
+	Durable            bool // fsync after each flush; overridden per-queue via SetQueueDurable
 	SnapshotInterval   time.Duration
 	QueueStateProvider func(namespace, queue string) interface{}
 }
 
 // WAL is the broker-level WAL that owns one queueWAL per (namespace, queue).
 type WAL struct {
-	rootDir string
-	cfg     WALConfig
-	queues  map[string]*QueueWAL
-	mu      sync.RWMutex
-	logger  *slog.Logger
+	rootDir      string
+	cfg          WALConfig
+	queues       map[string]*QueueWAL
+	queueDurable map[string]bool // per-queue durable override; absent = use cfg.Durable
+	mu           sync.RWMutex
+	logger       *slog.Logger
 }
 
 // QueueWAL is a single-writer WAL for one (namespace, queue) pair.
 // All fields other than ch/stop/done are accessed only by the writer goroutine
 // (under q.mu where noted).
 type QueueWAL struct {
-	dir string
-	cfg WALConfig
-	ch  chan Event
+	dir  string
+	cfg  WALConfig
+	ch   chan Event
 	stop chan struct{}
 	done chan struct{}
 
@@ -82,7 +83,7 @@ type QueueWAL struct {
 	crcHash       hash.Hash32
 	lastSnapSegID atomic.Uint64 // segment ID of the most recent confirmed snapshot
 	snapshotSem   chan struct{} // capacity 1: prevents concurrent snapshot goroutines
-	errored       atomic.Value // stores error when WAL enters permanent failure; nil = healthy
+	errored       atomic.Value  // stores error when WAL enters permanent failure; nil = healthy
 }
 
 // newQueueLogger is a shared helper so segment.go and other files use the same
@@ -98,11 +99,45 @@ func NewWAL(rootDir string, cfg WALConfig) (*WAL, error) {
 		return nil, fmt.Errorf("wal: create root dir: %w", err)
 	}
 	return &WAL{
-		rootDir: rootDir,
-		cfg:     cfg,
-		queues:  make(map[string]*QueueWAL),
-		logger:  slog.Default().With("component", "wal"),
+		rootDir:      rootDir,
+		cfg:          cfg,
+		queues:       make(map[string]*QueueWAL),
+		queueDurable: make(map[string]bool),
+		logger:       slog.Default().With("component", "wal"),
 	}, nil
+}
+
+// DefaultDurable returns the global Durable setting configured for this WAL.
+func (w *WAL) DefaultDurable() bool { return w.cfg.Durable }
+
+// QueueDurable returns the effective durable setting for a specific queue —
+// the per-queue override if set, otherwise the global default.
+func (w *WAL) QueueDurable(namespace, queue string) bool {
+	key := namespace + "/" + queue
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if d, ok := w.queueDurable[key]; ok {
+		return d
+	}
+	return w.cfg.Durable
+}
+
+// SetQueueDurable overrides the global Durable setting for a specific queue.
+// Call this after declaring a queue with a custom durability requirement.
+// durable=true  → fsync after each flush (default, survives power loss)
+// durable=false → OS buffer only (5-10x faster, survives process crash only)
+func (w *WAL) SetQueueDurable(namespace, queue string, durable bool) {
+	key := namespace + "/" + queue
+	w.mu.Lock()
+	w.queueDurable[key] = durable
+	// If the queueWAL already exists (messages received before this call),
+	// update its cfg in place — the writer goroutine reads cfg.Durable on every flush.
+	if qw, ok := w.queues[key]; ok {
+		qw.mu.Lock()
+		qw.cfg.Durable = durable
+		qw.mu.Unlock()
+	}
+	w.mu.Unlock()
 }
 
 // Append sends event e to the per-queue writer goroutine without blocking.
@@ -285,6 +320,7 @@ func (w *WAL) VisitQueues(fn func(qw *QueueWAL)) {
 }
 
 // getQueueWAL returns (or lazily creates) the queueWAL for the given key.
+// Per-queue durable override is applied at creation time via queueDurable map.
 func (w *WAL) getQueueWAL(namespace, queue string) *QueueWAL {
 	key := namespace + "/" + queue
 
@@ -300,7 +336,12 @@ func (w *WAL) getQueueWAL(namespace, queue string) *QueueWAL {
 	if existing, ok := w.queues[key]; ok {
 		return existing
 	}
-	newQ := newQueueWAL(w.rootDir, namespace, queue, w.cfg)
+	// Apply per-queue durable override if set, otherwise inherit global default.
+	cfg := w.cfg
+	if d, overridden := w.queueDurable[key]; overridden {
+		cfg.Durable = d
+	}
+	newQ := newQueueWAL(w.rootDir, namespace, queue, cfg)
 	w.queues[key] = newQ
 	return newQ
 }

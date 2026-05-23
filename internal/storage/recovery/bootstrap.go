@@ -5,8 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/83codes/octar/internal/storage/snapshot"
 	"log/slog"
+
+	"github.com/octarhq/octar/internal/storage/snapshot"
 )
 
 type QueueRecoveryInfo struct {
@@ -65,11 +66,11 @@ func (b *Bootstrap) DiscoverQueues() ([]QueueRecoveryInfo, error) {
 			if snapPath == "" {
 				b.logger.Info("no snapshot found, will replay from start", "namespace", ns.Name(), "queue", q.Name())
 				queues = append(queues, QueueRecoveryInfo{
-					Namespace:    ns.Name(),
-					Queue:        q.Name(),
-					Dir:          qDir,
-					SnapshotPath: "",
-					SnapshotSeq:  0,
+					Namespace:     ns.Name(),
+					Queue:         q.Name(),
+					Dir:           qDir,
+					SnapshotPath:  "",
+					SnapshotSeq:   0,
 					SnapshotSegID: 0,
 				})
 				continue
@@ -79,11 +80,11 @@ func (b *Bootstrap) DiscoverQueues() ([]QueueRecoveryInfo, error) {
 			if err != nil {
 				b.logger.Warn("failed to load snapshot info", "path", snapPath, "error", err)
 				queues = append(queues, QueueRecoveryInfo{
-					Namespace:    ns.Name(),
-					Queue:        q.Name(),
-					Dir:          qDir,
-					SnapshotPath: "",
-					SnapshotSeq:  0,
+					Namespace:     ns.Name(),
+					Queue:         q.Name(),
+					Dir:           qDir,
+					SnapshotPath:  "",
+					SnapshotSeq:   0,
 					SnapshotSegID: 0,
 				})
 				continue

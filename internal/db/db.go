@@ -17,7 +17,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/83codes/octar/internal/config"
+	"github.com/octarhq/octar/internal/config"
 	"golang.org/x/crypto/bcrypt"
 	_ "modernc.org/sqlite"
 )
@@ -27,7 +27,15 @@ type Store struct {
 	db           *sql.DB
 	path         string
 	defaultAdmin config.DefaultAdminConfig
+	adminCreated bool // true only when the admin was inserted on this startup
 }
+
+// AdminCreated reports whether the default admin user was created during this
+// startup (i.e. the database was brand-new). Used by app.go to decide whether
+// to write admin_credentials.txt — we must never overwrite it on restarts,
+// because a new random password is generated each time but only persisted to
+// the DB on first creation.
+func (s *Store) AdminCreated() bool { return s.adminCreated }
 
 // New opens (or creates) the SQLite database at dataDir/octar.db and runs
 // schema migrations + seed data.
@@ -170,18 +178,21 @@ func (s *Store) init() error {
 	return s.seedDefaultData()
 }
 
+// seedDefaultData creates the default namespace and admin user on first startup.
+// Sets s.adminCreated = true when the admin was newly inserted so app.go can
+// write admin_credentials.txt exactly once — never on subsequent restarts.
 func (s *Store) seedDefaultData() error {
 	logger := slog.Default().With("component", "db")
 
 	var count int
 
-	s.db.QueryRow("SELECT COUNT(*) FROM namespaces").Scan(&count)
+	_ = s.db.QueryRow("SELECT COUNT(*) FROM namespaces").Scan(&count)
 	if count == 0 {
-		s.db.Exec("INSERT INTO namespaces (name, config) VALUES ('main', '{}')")
+		_, _ = s.db.Exec("INSERT INTO namespaces (name, config) VALUES ('main', '{}')")
 		logger.Info("created default namespace", "name", "main")
 	}
 
-	s.db.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
+	_ = s.db.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
 	if count == 0 {
 		username := s.defaultAdmin.Username
 		password := s.defaultAdmin.Password
@@ -203,8 +214,13 @@ func (s *Store) seedDefaultData() error {
 		if err != nil {
 			return fmt.Errorf("create default admin user: %w", err)
 		}
-		logger.Info("created default admin user", "username", username, "role", "admin")
+		logger.Info("automatically created default admin user", "username", username, "role", "admin")
+		s.adminCreated = true
+		return nil
 	}
 
+	// Admin already exists — a new random password was generated this startup but
+	// was never persisted to the DB. Do NOT overwrite admin_credentials.txt.
+	logger.Info("admin user already exists, using existing database")
 	return nil
 }

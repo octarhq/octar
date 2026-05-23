@@ -129,7 +129,7 @@ func TestQueue_MultiGroupDRR_DeficitCarryover(t *testing.T) {
 
 	// No new messages published.
 	// Second drain: deficit = 2 + quantum(3) = 5, but nothing to drain.
-	batch, _, _, stillPending = q.DrainGroup(key, now)
+	batch, _, _, _ = q.DrainGroup(key, now)
 	if batch != nil {
 		t.Fatalf("expected nil batch (nothing to drain), got %d", len(*batch))
 	}
@@ -202,8 +202,8 @@ func TestQueue_TryDispatchOne_MultiGroup_MixedQuantum(t *testing.T) {
 	q.SetGroupConfig(GroupConfig{Key: "group-b", Quantum: 3, Parallelism: 10})
 
 	for range 10 {
-		q.Publish("group-a", []byte("a"))
-		q.Publish("group-b", []byte("b"))
+		_, _ = q.Publish("group-a", []byte("a"))
+		_, _ = q.Publish("group-b", []byte("b"))
 	}
 
 	// TryDispatchOne drains one at a time, not respecting quantum
@@ -243,10 +243,10 @@ func TestQueue_MultiGroupDRR_NoisyNeighborFairness(t *testing.T) {
 	q.SetGroupConfig(GroupConfig{Key: "quiet-c", Quantum: 1, Parallelism: 100})
 
 	for range 1000 {
-		q.Publish("noisy-a", []byte("noisy"))
+		_, _ = q.Publish("noisy-a", []byte("noisy"))
 	}
-	q.Publish("quiet-b", []byte("b"))
-	q.Publish("quiet-c", []byte("c"))
+	_, _ = q.Publish("quiet-b", []byte("b"))
+	_, _ = q.Publish("quiet-c", []byte("c"))
 
 	now := time.Now()
 
@@ -296,7 +296,7 @@ func TestQueue_DrainGroup_QuantumWithConcurrentPublish(t *testing.T) {
 
 	// Publish 3 upfront.
 	for range 3 {
-		q.Publish(key, []byte("pre"))
+		_, _ = q.Publish(key, []byte("pre"))
 	}
 
 	now := time.Now()
@@ -309,7 +309,7 @@ func TestQueue_DrainGroup_QuantumWithConcurrentPublish(t *testing.T) {
 
 	// Publish 3 more while deficit=2.
 	for range 3 {
-		q.Publish(key, []byte("post"))
+		_, _ = q.Publish(key, []byte("post"))
 	}
 
 	// Drain: deficit = 2 + quantum(5) = 7, drain 3 (only 3 pending), deficit = 4.

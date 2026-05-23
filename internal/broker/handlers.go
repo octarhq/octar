@@ -1,11 +1,11 @@
 package broker
 
 import (
-	"github.com/83codes/octar/internal/protocol"
-	"github.com/83codes/octar/internal/queue"
-	"github.com/83codes/octar/internal/server"
-	"github.com/83codes/octar/internal/storage"
-	"github.com/83codes/octar/internal/xtime"
+	"github.com/octarhq/octar/internal/protocol"
+	"github.com/octarhq/octar/internal/queue"
+	"github.com/octarhq/octar/internal/server"
+	"github.com/octarhq/octar/internal/storage"
+	"github.com/octarhq/octar/internal/xtime"
 )
 
 func (b *Broker) handleConnection(conn *server.Connection) {
@@ -33,7 +33,7 @@ func (b *Broker) handleConnection(conn *server.Connection) {
 		case protocol.FrameNACK:
 			b.onNACK(conn, frame.(protocol.NACKFrame))
 		case protocol.FrameHeartbeat:
-			conn.WriteHeartbeat()
+			_ = conn.WriteHeartbeat()
 		}
 	}
 }
@@ -53,14 +53,14 @@ func (b *Broker) onPublish(conn *server.Connection, f protocol.PublishFrame) {
 			"namespace", conn.Session.Namespace,
 			"queue", f.Queue,
 		)
-		conn.WriteError(protocol.ErrorFrame{Code: 404, Message: "queue not found: " + f.Queue})
+		_ = conn.WriteError(protocol.ErrorFrame{Code: 404, Message: "queue not found: " + f.Queue})
 		return
 	}
 
 	if !b.IncGlobalMsgs() {
 		b.logger.Warn("publish rejected: global message limit reached",
 			"limit", b.Config.Server.GlobalMaxMsgs)
-		conn.WriteBackpressure(protocol.BackpressureFrame{
+		_ = conn.WriteBackpressure(protocol.BackpressureFrame{
 			Reason:     "global message limit reached",
 			RetryAfter: 5,
 		})
@@ -84,7 +84,7 @@ func (b *Broker) onPublish(conn *server.Connection, f protocol.PublishFrame) {
 		Payload:   f.Payload,
 	}); err != nil {
 		b.logger.Error("failed to append PUBLISH to WAL", "msgID", msgID, "err", err)
-		conn.WriteError(protocol.ErrorFrame{Code: 500, Message: "internal durability error"})
+		_ = conn.WriteError(protocol.ErrorFrame{Code: 500, Message: "internal durability error"})
 		return
 	}
 
@@ -92,12 +92,12 @@ func (b *Broker) onPublish(conn *server.Connection, f protocol.PublishFrame) {
 	if err != nil {
 		b.logger.Error("failed to enqueue message after WAL write",
 			"msgID", msgID, "queue", f.Queue, "group", f.Group, "err", err)
-		conn.WriteError(protocol.ErrorFrame{Code: 500, Message: err.Error()})
+		_ = conn.WriteError(protocol.ErrorFrame{Code: 500, Message: err.Error()})
 		return
 	}
 
 	willDec = false
-	conn.WritePublishOK(protocol.PublishOKFrame{MsgID: msg.ID})
+	_ = conn.WritePublishOK(protocol.PublishOKFrame{MsgID: msg.ID})
 	b.logger.Debug("publish acked to producer", "msgID", msg.ID, "queue", f.Queue, "group", f.Group)
 
 	if next := q.TryDispatchOne(f.Group, xtime.Now()); next != nil {

@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/83codes/octar/internal/auth"
-	"github.com/83codes/octar/internal/config"
-	"github.com/83codes/octar/internal/db"
-	"github.com/83codes/octar/internal/protocol"
+	"github.com/octarhq/octar/internal/auth"
+	"github.com/octarhq/octar/internal/config"
+	"github.com/octarhq/octar/internal/db"
+	"github.com/octarhq/octar/internal/protocol"
 )
 
 func findFreePort(t *testing.T) int {
@@ -32,7 +32,7 @@ func testAuthServer(t *testing.T, port int, maxConns int32, handler ConnHandler)
 	t.Cleanup(func() { store.Close() })
 
 	authSvc := auth.NewService(config.AuthConfig{
-		Enabled: true,
+		Enabled:      true,
 		DefaultAdmin: config.DefaultAdminConfig{Username: "admin", Password: "testpass123!"},
 		Providers: config.ProvidersConfig{
 			Password: config.PasswordProviderConfig{Enabled: true, Priority: 10},
@@ -50,7 +50,7 @@ func dialAndSendConnect(t *testing.T, port int) net.Conn {
 		t.Fatalf("dial: %v", err)
 	}
 	enc := protocol.NewEncoder(conn)
-	enc.WriteConnect(protocol.ConnectFrame{
+	_ = enc.WriteConnect(protocol.ConnectFrame{
 		Username: "admin", Password: "testpass123!", Namespace: "main",
 	})
 	return conn
@@ -90,12 +90,12 @@ func TestTCPServer_StartPortConflict(t *testing.T) {
 	if err := s1.Start(); err != nil {
 		t.Fatalf("s1 Start: %v", err)
 	}
-	defer s1.Stop()
+	defer func() { _ = s1.Stop() }()
 
 	s2 := NewTCPServer("127.0.0.1", port, nil, nil, nil,
 		config.InflightConfig{}, 10, time.Second, time.Second, nil, 0)
 	if err := s2.Start(); err == nil {
-		s2.Stop()
+		_ = s2.Stop()
 		t.Fatal("expected error when port already in use")
 	}
 }
@@ -112,7 +112,7 @@ func TestTCPServer_ActiveConns_AfterConnect(t *testing.T) {
 	if err := s.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	defer s.Stop()
+	defer func() { _ = s.Stop() }()
 
 	conn := dialAndSendConnect(t, port)
 	defer conn.Close()
@@ -140,7 +140,7 @@ func TestTCPServer_ActiveConnsDecrementedOnDisconnect(t *testing.T) {
 	if err := s.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	defer s.Stop()
+	defer func() { _ = s.Stop() }()
 
 	conn := dialAndSendConnect(t, port)
 
@@ -169,7 +169,7 @@ func TestTCPServer_MaxConnections(t *testing.T) {
 	if err := s.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	defer s.Stop()
+	defer func() { _ = s.Stop() }()
 
 	conn1 := dialAndSendConnect(t, port)
 	defer conn1.Close()
@@ -208,7 +208,7 @@ func TestTCPServer_HandleConnAuthFailure(t *testing.T) {
 	}()
 
 	enc := protocol.NewEncoder(client)
-	enc.WriteConnect(protocol.ConnectFrame{
+	_ = enc.WriteConnect(protocol.ConnectFrame{
 		Username: "admin", Password: "wrong-password", Namespace: "main",
 	})
 
@@ -236,7 +236,7 @@ func TestTCPServer_HandleConnSuccess(t *testing.T) {
 	}()
 
 	enc := protocol.NewEncoder(client)
-	enc.WriteConnect(protocol.ConnectFrame{
+	_ = enc.WriteConnect(protocol.ConnectFrame{
 		Username: "admin", Password: "testpass123!", Namespace: "main",
 	})
 
@@ -265,7 +265,7 @@ func TestTCPServer_HandleConnHandlerPanic(t *testing.T) {
 	}()
 
 	enc := protocol.NewEncoder(client)
-	enc.WriteConnect(protocol.ConnectFrame{
+	_ = enc.WriteConnect(protocol.ConnectFrame{
 		Username: "admin", Password: "testpass123!", Namespace: "main",
 	})
 
@@ -287,7 +287,7 @@ func TestTCPServer_ConnRateLimit(t *testing.T) {
 	if err := s.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	defer s.Stop()
+	defer func() { _ = s.Stop() }()
 
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), time.Second)
 	if err != nil {

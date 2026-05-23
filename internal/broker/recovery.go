@@ -5,10 +5,10 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/83codes/octar/internal/queue"
-	stg "github.com/83codes/octar/internal/storage"
-	"github.com/83codes/octar/internal/storage/recovery"
-	"github.com/83codes/octar/internal/storage/snapshot"
+	"github.com/octarhq/octar/internal/queue"
+	stg "github.com/octarhq/octar/internal/storage"
+	"github.com/octarhq/octar/internal/storage/recovery"
+	"github.com/octarhq/octar/internal/storage/snapshot"
 )
 
 func (b *Broker) recoverQueues() error {

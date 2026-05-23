@@ -6,8 +6,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/83codes/octar/internal/auth"
-	"github.com/83codes/octar/internal/db"
+	"github.com/octarhq/octar/internal/auth"
+	"github.com/octarhq/octar/internal/db"
 )
 
 func registerAuth(api huma.API, store *db.Store, authSvc *auth.Service) {

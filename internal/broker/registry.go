@@ -4,7 +4,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/83codes/octar/internal/server"
+	"github.com/octarhq/octar/internal/server"
 )
 
 type subKey struct{ ns, queue, group string }

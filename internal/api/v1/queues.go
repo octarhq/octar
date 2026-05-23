@@ -5,15 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/83codes/octar/internal/broker"
-	"github.com/83codes/octar/internal/db"
-	"github.com/83codes/octar/internal/queue"
-	"github.com/83codes/octar/internal/scheduler"
+	"github.com/octarhq/octar/internal/broker"
+	"github.com/octarhq/octar/internal/db"
+	"github.com/octarhq/octar/internal/queue"
+	"github.com/octarhq/octar/internal/scheduler"
 )
 
 // ── Input/output types ────────────────────────────────────────────────────────
@@ -24,17 +25,18 @@ import (
 type queueSummary struct {
 	Name         string `json:"name"`
 	Namespace    string `json:"namespace"`
-	ActiveGroups int    `json:"active_groups"`  // runtime group count (cheap: O(32 shards))
-	ConfigCount  int    `json:"config_count"`   // declared configs count (O(1))
+	ActiveGroups int    `json:"active_groups"` // runtime group count (cheap: O(32 shards))
+	ConfigCount  int    `json:"config_count"`  // declared configs count (O(1))
 }
 
 // queueDetail is the single-queue view returned by GET /queues/{ns}/{name}.
 // Stats are intentionally excluded; use GET .../stats for runtime data.
 type queueDetail struct {
-	Name        string `json:"name"`
-	Namespace   string `json:"namespace"`
-	ActiveGroups int   `json:"active_groups"`
-	ConfigCount  int   `json:"config_count"`
+	Name         string `json:"name"`
+	Namespace    string `json:"namespace"`
+	ActiveGroups int    `json:"active_groups"`
+	ConfigCount  int    `json:"config_count"`
+	Durable      bool   `json:"durable" doc:"Whether messages are fsynced to disk after each WAL flush"`
 }
 
 // pagedGroupStats is the response for the paginated stats endpoint.
@@ -111,6 +113,12 @@ func registerQueues(humaAPI huma.API, store *db.Store, sched *scheduler.Schedule
 		Body struct {
 			Name      string `json:"name" minLength:"1" maxLength:"128" pattern:"^[a-z0-9_-]+$"`
 			Namespace string `json:"namespace" minLength:"1" maxLength:"64"`
+			// Durable controls whether messages in this queue are fsynced to disk
+			// after each WAL flush batch, guaranteeing survival across power loss.
+			// true  (default) → fsync; messages survive power loss; lower throughput.
+			// false           → OS buffer only; 5–10x faster; messages survive process
+			//                   crash but may be lost on power loss or kernel panic.
+			Durable *bool `json:"durable,omitempty" doc:"fsync after each WAL flush (default: true). Set false for ephemeral/high-throughput queues."`
 		}
 	}
 	huma.Register(humaAPI, huma.Operation{
@@ -134,7 +142,14 @@ func registerQueues(humaAPI huma.API, store *db.Store, sched *scheduler.Schedule
 			return nil, dbError(err, "namespace")
 		}
 
-		if _, err := store.CreateQueue(ns.ID, input.Body.Name, "{}"); err != nil {
+		// Resolve durable: explicit value or global default.
+		durable := b.WAL.DefaultDurable()
+		if input.Body.Durable != nil {
+			durable = *input.Body.Durable
+		}
+
+		cfgJSON, _ := json.Marshal(map[string]any{"durable": durable})
+		if _, err := store.CreateQueue(ns.ID, input.Body.Name, string(cfgJSON)); err != nil {
 			return nil, dbError(err, "queue")
 		}
 
@@ -143,7 +158,8 @@ func registerQueues(humaAPI huma.API, store *db.Store, sched *scheduler.Schedule
 		b.WAL.RegisterQueueState(input.Body.Namespace, input.Body.Name, func() interface{} {
 			return q.ExportState()
 		})
-		return &struct{ Body queueDetail }{Body: toQueueDetail(q)}, nil
+		b.WAL.SetQueueDurable(input.Body.Namespace, input.Body.Name, durable)
+		return &struct{ Body queueDetail }{Body: toQueueDetail(q, durable)}, nil
 	})
 
 	// ── GET /queues/{namespace}/{name} ──────────────────────────────────────────
@@ -167,7 +183,8 @@ func registerQueues(humaAPI huma.API, store *db.Store, sched *scheduler.Schedule
 		if q == nil {
 			return nil, huma.Error404NotFound("queue not found")
 		}
-		return &struct{ Body queueDetail }{Body: toQueueDetail(q)}, nil
+		durable := b.WAL.QueueDurable(input.Namespace, input.Name)
+		return &struct{ Body queueDetail }{Body: toQueueDetail(q, durable)}, nil
 	})
 
 	// ── DELETE /queues/{namespace}/{name} ───────────────────────────────────────
@@ -196,9 +213,7 @@ func registerQueues(humaAPI huma.API, store *db.Store, sched *scheduler.Schedule
 		sched.UnregisterQueue(input.Namespace, input.Name)
 		// Clean up WAL segment files (B1).
 		if err := b.WAL.DestroyQueue(input.Namespace, input.Name); err != nil {
-			// Log but don't fail the HTTP request — the queue is already
-			// unregistered from the scheduler.
-			// Use slog directly since we don't have a logger reference here.
+			slog.Warn("failed to destroy queue WAL", "error", err, "namespace", input.Namespace, "queue", input.Name)
 		}
 		return nil, nil
 	})
@@ -440,12 +455,13 @@ func registerQueues(humaAPI huma.API, store *db.Store, sched *scheduler.Schedule
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-func toQueueDetail(q *queue.Queue) queueDetail {
+func toQueueDetail(q *queue.Queue, durable bool) queueDetail {
 	return queueDetail{
 		Name:         q.Name,
 		Namespace:    q.Namespace,
 		ActiveGroups: q.GroupCount(),
 		ConfigCount:  q.ConfigCount(),
+		Durable:      durable,
 	}
 }
 

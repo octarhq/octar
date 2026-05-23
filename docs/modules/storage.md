@@ -19,7 +19,8 @@ Implements durable, queue-scoped write-ahead logging with batching, segmentation
 Existing WAL implementations (e.g. etcd/wal, bbolt) are general-purpose and incur overhead for our access pattern: **per-queue, single-writer, append-only, with periodic snapshots**. A custom WAL allows:
 
 - **Per-queue isolation**: one writer goroutine per queue — a slow queue never blocks others
-- **Batched flushing**: timer-based (10ms) and size-based (1000 events) — tuneable for latency vs throughput
+- **Batched flushing**: timer-based (25ms) and size-based (1000 events) — tuneable for latency vs throughput
+- **Per-queue durability**: `durable: true` (default) fsyncs after each batch; `durable: false` uses OS buffer only for 5–10x higher throughput on ephemeral queues
 - **Segmented files**: bounded per-file size (512 MB) for fast recovery and easy GC
 - **CRC32-C hardware acceleration**: modern CPUs (SSE4.2, ARMv8) compute this in a single instruction
 
@@ -75,7 +76,29 @@ Broker → per-queue channel (chan Event, buffered 8192)
 | Mode | Behaviour | Used For |
 |------|-----------|----------|
 | `Append()` | Fire-and-forget (async) | LEASE, ACK, NACK, EXPIRE |
-| `AppendSync()` | Block until fsync complete | PUBLISH (must be durable before ack) |
+| `AppendSync()` | Block until flush confirmed | PUBLISH (must be durable before ack) |
+
+> When `durable: true` (default), `AppendSync` blocks until fsync completes.  
+> When `durable: false`, it blocks only until the OS buffer is flushed — no fsync.
+
+### Per-Queue Durability
+
+Each queue can override the global `durable` setting declared at queue creation:
+
+```bash
+# Durable queue (default) — fsync, survives power loss
+POST /queues
+{ "name": "orders", "namespace": "main" }
+
+# Non-durable queue — OS buffer only, 5-10x faster
+POST /queues
+{ "name": "realtime-notifications", "namespace": "main", "durable": false }
+```
+
+| `durable` | Survives process crash | Survives power loss | Throughput |
+|-----------|----------------------|---------------------|------------|
+| `true` (default) | ✅ | ✅ | ~25–50k msg/s (Windows) |
+| `false` | ✅ | ❌ | ~150–300k msg/s |
 
 ## Segments
 

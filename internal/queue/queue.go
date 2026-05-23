@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/83codes/octar/internal/xtime"
+	"github.com/octarhq/octar/internal/xtime"
 )
 
 // GroupStats contains runtime statistics for a single group.
@@ -167,9 +167,9 @@ func (ci *configIdx) del(key string) bool {
 }
 
 // resolve returns the best config for key:
-//   1. O(1) exact match
-//   2. O(wildcards) first glob match — wildcards list is always tiny
-//   3. nil (caller uses defaultGroupConfig)
+//  1. O(1) exact match
+//  2. O(wildcards) first glob match — wildcards list is always tiny
+//  3. nil (caller uses defaultGroupConfig)
 func (ci *configIdx) resolve(key string) *GroupConfig {
 	if c, ok := ci.exact[key]; ok {
 		return c
@@ -800,11 +800,13 @@ func (q *Queue) RemoveMessage(groupKey, msgID string) bool {
 // coordination — group message state stays fully encapsulated.
 type GroupToken struct{ g *group }
 
-func (t *GroupToken) TrySchedule() bool                { return t.g.isScheduled.CompareAndSwap(0, 1) }
-func (t *GroupToken) Unschedule()                      { t.g.isScheduled.Store(0) }
-func (t *GroupToken) LoadWake() int64                  { return t.g.wakeScheduledAt.Load() }
-func (t *GroupToken) TrySetWake(curr, next int64) bool { return t.g.wakeScheduledAt.CompareAndSwap(curr, next) }
-func (t *GroupToken) ClearWake(expected int64)         { t.g.wakeScheduledAt.CompareAndSwap(expected, 0) }
+func (t *GroupToken) TrySchedule() bool { return t.g.isScheduled.CompareAndSwap(0, 1) }
+func (t *GroupToken) Unschedule()       { t.g.isScheduled.Store(0) }
+func (t *GroupToken) LoadWake() int64   { return t.g.wakeScheduledAt.Load() }
+func (t *GroupToken) TrySetWake(curr, next int64) bool {
+	return t.g.wakeScheduledAt.CompareAndSwap(curr, next)
+}
+func (t *GroupToken) ClearWake(expected int64) { t.g.wakeScheduledAt.CompareAndSwap(expected, 0) }
 
 func queueKey(namespace, name string) string { return namespace + "/" + name }
 

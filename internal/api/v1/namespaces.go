@@ -7,8 +7,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/83codes/octar/internal/auth"
-	"github.com/83codes/octar/internal/db"
+	"github.com/octarhq/octar/internal/auth"
+	"github.com/octarhq/octar/internal/db"
 )
 
 // namespaceView is the public representation of a namespace (without raw config blob).

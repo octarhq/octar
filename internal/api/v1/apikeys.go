@@ -6,7 +6,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/83codes/octar/internal/auth"
+	"github.com/octarhq/octar/internal/auth"
 )
 
 func registerAPIKeys(api huma.API, authSvc *auth.Service) {

@@ -6,17 +6,17 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/83codes/octar/internal/db"
+	"github.com/octarhq/octar/internal/db"
 )
 
 // userView is the public representation of a user — never exposes password_hash.
 type userView struct {
-	ID        int    `json:"id"`
-	Username  string `json:"username"`
+	ID        int     `json:"id"`
+	Username  string  `json:"username"`
 	Email     *string `json:"email,omitempty"`
-	Role      string `json:"role"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at,omitempty"`
+	Role      string  `json:"role"`
+	CreatedAt string  `json:"created_at"`
+	UpdatedAt string  `json:"updated_at,omitempty"`
 }
 
 func toUserView(u db.User) userView {

@@ -16,11 +16,11 @@ var loginCmd = &cobra.Command{
 
 		if username == "" {
 			fmt.Print("Username: ")
-			fmt.Scanln(&username)
+			_, _ = fmt.Scanln(&username)
 		}
 		if password == "" {
 			fmt.Print("Password: ")
-			fmt.Scanln(&password)
+			_, _ = fmt.Scanln(&password)
 		}
 
 		client := apiClient()

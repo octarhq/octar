@@ -6,20 +6,20 @@ import (
 	"encoding/hex"
 	"time"
 
-	"github.com/83codes/octar/internal/auth/authenticator"
-	"github.com/83codes/octar/internal/auth/identity"
-	"github.com/83codes/octar/internal/db"
+	"github.com/octarhq/octar/internal/auth/authenticator"
+	"github.com/octarhq/octar/internal/auth/identity"
+	"github.com/octarhq/octar/internal/db"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type PasswordAuthenticator struct {
-	db        *db.Store
+	db         *db.Store
 	bcryptCost int
 }
 
 func NewPasswordAuthenticator(store *db.Store) *PasswordAuthenticator {
 	return &PasswordAuthenticator{
-		db:        store,
+		db:         store,
 		bcryptCost: bcrypt.DefaultCost,
 	}
 }
@@ -58,15 +58,15 @@ func (a *PasswordAuthenticator) Authenticate(
 	sessionID := generateSessionID()
 
 	id := &identity.Identity{
-		SubjectID:    user.Username,
+		SubjectID:   user.Username,
 		SubjectType: subjectType,
-		AccountID:    user.Username,
-		Namespace:    req.Namespace,
-		Roles:        []string{role},
-		Permissions:  a.resolvePermissions(role),
-		AuthMethod:   identity.AuthMethodPassword,
-		IssuedAt:     time.Now(),
-		ExpiresAt:    time.Now().Add(24 * time.Hour),
+		AccountID:   user.Username,
+		Namespace:   req.Namespace,
+		Roles:       []string{role},
+		Permissions: a.resolvePermissions(role),
+		AuthMethod:  identity.AuthMethodPassword,
+		IssuedAt:    time.Now(),
+		ExpiresAt:   time.Now().Add(24 * time.Hour),
 		Metadata: map[string]string{
 			"email": func() string {
 				if user.Email != nil {
@@ -106,6 +106,6 @@ func (a *PasswordAuthenticator) resolvePermissions(role string) identity.Permiss
 
 func generateSessionID() string {
 	b := make([]byte, 32)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
 }

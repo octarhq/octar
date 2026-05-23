@@ -98,7 +98,7 @@ func (s *Store) QueryAuditEvents(ctx context.Context, filter AuditFilter) ([]Aud
 		}
 		e.Timestamp, _ = time.Parse(time.RFC3339, tsStr)
 		if metaStr != "" {
-			json.Unmarshal([]byte(metaStr), &e.Metadata)
+			_ = json.Unmarshal([]byte(metaStr), &e.Metadata)
 		}
 		events = append(events, e)
 	}

@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/83codes/octar/internal/auth/authenticator"
-	"github.com/83codes/octar/internal/auth/identity"
-	"github.com/83codes/octar/internal/config"
+	"github.com/octarhq/octar/internal/auth/authenticator"
+	"github.com/octarhq/octar/internal/auth/identity"
+	"github.com/octarhq/octar/internal/config"
 )
 
 type MTLSAuthenticator struct {

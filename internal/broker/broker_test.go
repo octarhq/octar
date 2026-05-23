@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/83codes/octar/internal/config"
-	"github.com/83codes/octar/internal/protocol"
-	"github.com/83codes/octar/internal/queue"
-	"github.com/83codes/octar/internal/scheduler"
-	"github.com/83codes/octar/internal/server"
-	stg "github.com/83codes/octar/internal/storage"
+	"github.com/octarhq/octar/internal/config"
+	"github.com/octarhq/octar/internal/protocol"
+	"github.com/octarhq/octar/internal/queue"
+	"github.com/octarhq/octar/internal/scheduler"
+	"github.com/octarhq/octar/internal/server"
+	stg "github.com/octarhq/octar/internal/storage"
 )
 
 func testBroker(t *testing.T) (*Broker, *queue.Queue, func()) {
@@ -34,7 +34,7 @@ func testBroker(t *testing.T) (*Broker, *queue.Queue, func()) {
 				FlushInterval:    50 * time.Millisecond,
 				FlushMaxMessages: 100,
 				SegmentMaxBytes:  64 << 20,
-				Sync:             false,
+				Durable:          false,
 			},
 		},
 	}
@@ -44,7 +44,7 @@ func testBroker(t *testing.T) (*Broker, *queue.Queue, func()) {
 		FlushInterval:    50 * time.Millisecond,
 		FlushMaxMessages: 100,
 		SegmentMaxBytes:  64 << 20,
-		Sync:             false,
+		Durable:          false,
 	})
 	if err != nil {
 		t.Fatalf("NewWAL: %v", err)
@@ -1032,7 +1032,9 @@ func TestBrokerHeartbeat(t *testing.T) {
 	conn, dec, cleanupConn := testConn(t)
 	defer cleanupConn()
 
-	conn.WriteHeartbeat()
+	if err := conn.WriteHeartbeat(); err != nil {
+		t.Fatal(err)
+	}
 
 	ft, frame := readFrame(t, dec)
 	if ft != protocol.FrameHeartbeat {
@@ -1237,9 +1239,9 @@ func TestBrokerACKWithoutCredit(t *testing.T) {
 	pok := frame.(protocol.PublishOKFrame)
 
 	b.onACK(conn, protocol.ACKFrame{
-		MsgID:  pok.MsgID + "-nonexistent",
-		Queue:  "test-q",
-		Group:  "test-group",
+		MsgID: pok.MsgID + "-nonexistent",
+		Queue: "test-q",
+		Group: "test-group",
 	})
 
 	if stats, ok := b.Scheduler.GetQueue("test-ns", "test-q").GetGroupStats("test-group"); ok {

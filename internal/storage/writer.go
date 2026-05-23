@@ -10,9 +10,9 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/83codes/octar/internal/metrics"
-	"github.com/83codes/octar/internal/queue"
-	"github.com/83codes/octar/internal/storage/snapshot"
+	"github.com/octarhq/octar/internal/metrics"
+	"github.com/octarhq/octar/internal/queue"
+	"github.com/octarhq/octar/internal/storage/snapshot"
 )
 
 // isDiskFull returns true when err is an ENOSPC (no space left on device) or
@@ -96,23 +96,23 @@ func (q *QueueWAL) writeRecord(e Event) int {
 	binary.BigEndian.PutUint32(footer[:], h.Sum32())
 
 	// Write to buffered log
-	q.logBuf.Write(header[:])
+	_, _ = q.logBuf.Write(header[:])
 	for _, f := range []string{e.Namespace, e.Queue, e.Group, e.MsgID} {
 		binary.BigEndian.PutUint16(fieldLenBuf[:], uint16(len(f)))
-		q.logBuf.Write(fieldLenBuf[:])
-		q.logBuf.WriteString(f)
+		_, _ = q.logBuf.Write(fieldLenBuf[:])
+		_, _ = q.logBuf.WriteString(f)
 	}
-	q.logBuf.Write(payloadLenBuf[:])
+	_, _ = q.logBuf.Write(payloadLenBuf[:])
 	if payloadLen > 0 {
-		q.logBuf.Write(e.Payload)
+		_, _ = q.logBuf.Write(e.Payload)
 	}
-	q.logBuf.Write(footer[:])
+	_, _ = q.logBuf.Write(footer[:])
 
 	// Sparse index entry: seq (8) | file position (8)
 	var idxEntry [16]byte
 	binary.BigEndian.PutUint64(idxEntry[0:], e.Seq)
 	binary.BigEndian.PutUint64(idxEntry[8:], uint64(posBefore))
-	q.idxBuf.Write(idxEntry[:])
+	_, _ = q.idxBuf.Write(idxEntry[:])
 
 	return fixedOverhead
 }
@@ -165,7 +165,7 @@ func (q *QueueWAL) flushBatch(batch []Event) {
 	}
 
 	var fsyncDur time.Duration
-	if q.cfg.Sync {
+	if q.cfg.Durable {
 		t := time.Now()
 		if err := q.file.Sync(); err != nil {
 			q.logger.Error("wal fsync failed", "error", err)
@@ -191,7 +191,7 @@ func (q *QueueWAL) flushBatch(batch []Event) {
 	rotated := false
 	if q.fileSize >= q.cfg.SegmentMaxBytes {
 		go q.saveSnapshotRecovery() // async: I/O without holding the lock
-		q.rotateSegment()
+		_ = q.rotateSegment()
 		rotated = true
 		metrics.WALSegmentRotations.WithLabelValues(q.Namespace, q.Queue).Inc()
 	}

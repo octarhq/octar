@@ -3,7 +3,7 @@ package authenticator
 import (
 	"context"
 
-	"github.com/83codes/octar/internal/auth/identity"
+	"github.com/octarhq/octar/internal/auth/identity"
 )
 
 type AuthRequest struct {
@@ -25,9 +25,9 @@ type AuthRequest struct {
 }
 
 type AuthResult struct {
-	Identity *identity.Identity
+	Identity  *identity.Identity
 	SessionID string
-	Error    error
+	Error     error
 }
 
 type Authenticator interface {

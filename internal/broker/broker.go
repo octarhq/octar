@@ -9,16 +9,16 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/83codes/octar/internal/auth"
-	"github.com/83codes/octar/internal/config"
-	"github.com/83codes/octar/internal/db"
-	"github.com/83codes/octar/internal/metrics"
-	"github.com/83codes/octar/internal/queue"
-	"github.com/83codes/octar/internal/scheduler"
-	"github.com/83codes/octar/internal/server"
-	stg "github.com/83codes/octar/internal/storage"
-	"github.com/83codes/octar/internal/storage/recovery"
-	"github.com/83codes/octar/internal/xtime"
+	"github.com/octarhq/octar/internal/auth"
+	"github.com/octarhq/octar/internal/config"
+	"github.com/octarhq/octar/internal/db"
+	"github.com/octarhq/octar/internal/metrics"
+	"github.com/octarhq/octar/internal/queue"
+	"github.com/octarhq/octar/internal/scheduler"
+	"github.com/octarhq/octar/internal/server"
+	stg "github.com/octarhq/octar/internal/storage"
+	"github.com/octarhq/octar/internal/storage/recovery"
+	"github.com/octarhq/octar/internal/xtime"
 )
 
 func loadTLSConfig(cfg config.TLSConfig) (*tls.Config, error) {
@@ -67,7 +67,7 @@ func New(cfg *config.Config, store *db.Store, authSvc *auth.Service) (*Broker, e
 		FlushInterval:    cfg.Storage.WAL.FlushInterval,
 		FlushMaxMessages: cfg.Storage.WAL.FlushMaxMessages,
 		SegmentMaxBytes:  cfg.Storage.WAL.SegmentMaxBytes,
-		Sync:             cfg.Storage.WAL.Sync,
+		Durable:          cfg.Storage.WAL.Durable,
 		SnapshotInterval: cfg.Storage.WAL.SnapshotInterval,
 	})
 	if err != nil {

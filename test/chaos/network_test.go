@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/83codes/octar/internal/config"
-	"github.com/83codes/octar/internal/protocol"
-	"github.com/83codes/octar/internal/queue"
-	"github.com/83codes/octar/internal/server"
+	"github.com/octarhq/octar/internal/config"
+	"github.com/octarhq/octar/internal/protocol"
+	"github.com/octarhq/octar/internal/queue"
+	"github.com/octarhq/octar/internal/server"
 )
 
 // TestNetwork_DisconnectDuringDispatch simulates a consumer disconnecting
@@ -38,7 +38,7 @@ func TestNetwork_DisconnectDuringDispatch(t *testing.T) {
 	if msg == nil {
 		t.Fatal("expected a message to dispatch")
 	}
-	conn.WriteMessage(protocol.MessageFrame{
+	_ = conn.WriteMessage(protocol.MessageFrame{
 		MsgID:   msg.ID,
 		Queue:   "net-disconnect",
 		Group:   "g1",
@@ -118,7 +118,7 @@ func TestNetwork_MultipleDisconnects(t *testing.T) {
 			t.Fatalf("iteration %d: unexpected payload", i)
 		}
 
-		conn.WriteMessage(protocol.MessageFrame{
+		_ = conn.WriteMessage(protocol.MessageFrame{
 			MsgID:   msg.ID,
 			Queue:   "net-reconnect",
 			Group:   "g1",
@@ -182,7 +182,7 @@ func TestNetwork_BackpressureGraceful(t *testing.T) {
 		if msg == nil {
 			break
 		}
-		conn.WriteMessage(protocol.MessageFrame{
+		_ = conn.WriteMessage(protocol.MessageFrame{
 			MsgID:   msg.ID,
 			Queue:   "net-backpressure",
 			Group:   "g1",

@@ -24,7 +24,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/83codes/octar/internal/protocol"
+	"github.com/octarhq/octar/internal/protocol"
 )
 
 func main() {

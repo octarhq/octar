@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/83codes/octar/internal/queue"
-	"github.com/83codes/octar/internal/xtime"
+	"github.com/octarhq/octar/internal/queue"
+	"github.com/octarhq/octar/internal/xtime"
 )
 
 // DispatchFunc is called by the scheduler for each message it decides to send.

@@ -10,7 +10,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/83codes/octar/internal/storage/snapshot"
+	"github.com/octarhq/octar/internal/storage/snapshot"
 )
 
 // readBufPool reduces allocations during WAL recovery by reusing the byte buffer

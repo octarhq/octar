@@ -1,9 +1,9 @@
 package broker
 
 import (
-	"github.com/83codes/octar/internal/protocol"
-	"github.com/83codes/octar/internal/queue"
-	"github.com/83codes/octar/internal/storage"
+	"github.com/octarhq/octar/internal/protocol"
+	"github.com/octarhq/octar/internal/queue"
+	"github.com/octarhq/octar/internal/storage"
 )
 
 func (b *Broker) startDispatchWorkers() {
@@ -66,7 +66,7 @@ func (b *Broker) dispatch(msg *queue.Message) bool {
 			"group", msg.GroupKey,
 			"msgID", msg.ID,
 		)
-		conn.WriteBackpressure(protocol.BackpressureFrame{
+		_ = conn.WriteBackpressure(protocol.BackpressureFrame{
 			Reason:     "broker global inflight quota exceeded",
 			RetryAfter: 1000,
 		})
@@ -84,7 +84,7 @@ func (b *Broker) dispatch(msg *queue.Message) bool {
 			"queue", msg.QueueName,
 			"group", msg.GroupKey,
 		)
-		conn.WriteBackpressure(protocol.BackpressureFrame{
+		_ = conn.WriteBackpressure(protocol.BackpressureFrame{
 			Reason:     "per-connection inflight limit reached",
 			RetryAfter: 500,
 		})

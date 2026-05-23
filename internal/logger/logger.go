@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/83codes/octar/internal/config"
+	"github.com/octarhq/octar/internal/config"
 )
 
 // Init configures the global slog instance based on the LogConfig.
@@ -25,7 +25,7 @@ func Init(cfg config.LogConfig) {
 			return a
 		},
 	})
-	
+
 	slog.SetDefault(slog.New(handler))
 }
 

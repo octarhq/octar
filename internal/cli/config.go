@@ -39,7 +39,7 @@ func LoadConfig() (*Config, error) {
 		cfg.APIHost = host
 	}
 	if port := os.Getenv("OCTAR_API_PORT"); port != "" {
-		fmt.Sscanf(port, "%d", &cfg.APIPort)
+		_, _ = fmt.Sscanf(port, "%d", &cfg.APIPort)
 	}
 
 	data, err := os.ReadFile(configPath())

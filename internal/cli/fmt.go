@@ -18,7 +18,7 @@ var GlobalFormat OutputFormat = FormatText
 func printJSON(v any) {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	enc.Encode(v)
+	_ = enc.Encode(v)
 }
 
 func printTable(headers []string, rows [][]string) {

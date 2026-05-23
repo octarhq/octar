@@ -28,7 +28,7 @@ func loadFromYAML(t *testing.T, yamlContent string) (*Config, error) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Chdir(prevDir) })
+	t.Cleanup(func() { _ = os.Chdir(prevDir) })
 	return Load()
 }
 
@@ -77,8 +77,8 @@ func TestDefaultsApplied(t *testing.T) {
 		if cfg.Server.Inflight.GlobalMax != 0 {
 			t.Errorf("server.inflight.global_max = %d, want %d", cfg.Server.Inflight.GlobalMax, 0)
 		}
-		if cfg.Storage.WAL.FlushInterval != 10*time.Millisecond {
-			t.Errorf("storage.wal.flush_interval = %v, want %v", cfg.Storage.WAL.FlushInterval, 10*time.Millisecond)
+		if cfg.Storage.WAL.FlushInterval != 25*time.Millisecond {
+			t.Errorf("storage.wal.flush_interval = %v, want %v", cfg.Storage.WAL.FlushInterval, 25*time.Millisecond)
 		}
 		if cfg.Storage.WAL.FlushMaxMessages != 1000 {
 			t.Errorf("storage.wal.flush_max_messages = %d, want %d", cfg.Storage.WAL.FlushMaxMessages, 1000)
@@ -86,8 +86,8 @@ func TestDefaultsApplied(t *testing.T) {
 		if cfg.Storage.WAL.SegmentMaxBytes != 512<<20 {
 			t.Errorf("storage.wal.segment_max_bytes = %d, want %d", cfg.Storage.WAL.SegmentMaxBytes, 512<<20)
 		}
-		if cfg.Storage.WAL.Sync != true {
-			t.Errorf("storage.wal.sync = %v, want true", cfg.Storage.WAL.Sync)
+		if cfg.Storage.WAL.Durable != true {
+			t.Errorf("storage.wal.durable = %v, want true", cfg.Storage.WAL.Durable)
 		}
 		if cfg.Storage.WAL.SnapshotInterval != 60*time.Second {
 			t.Errorf("storage.wal.snapshot_interval = %v, want %v", cfg.Storage.WAL.SnapshotInterval, 60*time.Second)
@@ -588,7 +588,7 @@ storage:
     flush_interval: "25ms"
     flush_max_messages: 500
     segment_max_bytes: 268435456
-    sync: false
+    durable: false
     snapshot_interval: "30s"
   snapshot:
     interval: "2m"
@@ -659,8 +659,8 @@ defaults:
 		if cfg.Storage.WAL.SegmentMaxBytes != 268435456 {
 			t.Errorf("segment_max_bytes = %d", cfg.Storage.WAL.SegmentMaxBytes)
 		}
-		if cfg.Storage.WAL.Sync != false {
-			t.Errorf("sync = %v", cfg.Storage.WAL.Sync)
+		if cfg.Storage.WAL.Durable != false {
+			t.Errorf("durable = %v", cfg.Storage.WAL.Durable)
 		}
 		if cfg.Storage.WAL.SnapshotInterval != 30*time.Second {
 			t.Errorf("snapshot_interval = %v", cfg.Storage.WAL.SnapshotInterval)
@@ -690,13 +690,13 @@ defaults:
 
 func TestMissingConfigFile(t *testing.T) {
 	t.Run("succeeds_without_config_file", func(t *testing.T) {
-	viper.Reset()
+		viper.Reset()
 		dir := t.TempDir()
 		prevDir, _ := os.Getwd()
 		if err := os.Chdir(dir); err != nil {
 			t.Fatal(err)
 		}
-		t.Cleanup(func() { os.Chdir(prevDir) })
+		t.Cleanup(func() { _ = os.Chdir(prevDir) })
 
 		cfg, err := Load()
 		if err != nil {
@@ -803,15 +803,6 @@ auth:
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-func contains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}
-
 // TestWALAppendTimeout is a constant, but verify it compiles and is correct
 func TestWALAppendTimeoutConstant(t *testing.T) {
 	if WALAppendTimeout != 30*time.Second {
@@ -828,7 +819,7 @@ func TestProjectConfigLoads(t *testing.T) {
 	if err := os.Chdir(projectRoot); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Chdir(prevDir) })
+	t.Cleanup(func() { _ = os.Chdir(prevDir) })
 
 	cfg, err := Load()
 	if err != nil {

@@ -8,10 +8,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/83codes/octar/internal/auth"
-	"github.com/83codes/octar/internal/config"
-	"github.com/83codes/octar/internal/db"
-	"github.com/83codes/octar/internal/metrics"
+	"github.com/octarhq/octar/internal/auth"
+	"github.com/octarhq/octar/internal/config"
+	"github.com/octarhq/octar/internal/db"
+	"github.com/octarhq/octar/internal/metrics"
 )
 
 type tokenBucket struct {
@@ -121,7 +121,7 @@ func (s *TCPServer) acceptLoop() {
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
-			if ne, ok := err.(net.Error); ok && ne.Temporary() {
+			if ne, ok := err.(net.Error); ok && ne.Timeout() {
 				s.logger.Warn("tcp accept transient error, retrying",
 					"error", err, "backoff", backoff)
 				time.Sleep(backoff)
@@ -171,8 +171,8 @@ func (s *TCPServer) handleConn(raw net.Conn) {
 	}()
 
 	if tcp, ok := raw.(*net.TCPConn); ok {
-		tcp.SetKeepAlive(true)
-		tcp.SetKeepAlivePeriod(30 * time.Second)
+		_ = tcp.SetKeepAlive(true)
+		_ = tcp.SetKeepAlivePeriod(30 * time.Second)
 	}
 
 	conn := newConnection(raw, s.inflight, s.ReadTimeout, s.WriteTimeout)

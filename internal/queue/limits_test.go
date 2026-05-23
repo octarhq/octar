@@ -60,10 +60,10 @@ func TestMemoryLayout(t *testing.T) {
 
 	fmt.Printf("\n=== Scheduler activation channel ===\n")
 	type groupActivationApprox struct {
-		q        uintptr   // *queue.Queue
-		groupKey [2]uintptr // string
-		token    uintptr   // *GroupToken
-		enqueued [3]uintptr // time.Time
+		_ uintptr    // *queue.Queue
+		_ [2]uintptr // string
+		_ uintptr    // *GroupToken
+		_ [3]uintptr // time.Time
 	}
 	chanSlotSize := int(unsafe.Sizeof(groupActivationApprox{}))
 	fmt.Printf("  slot size:      ~%d bytes\n", chanSlotSize)

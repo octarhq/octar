@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/83codes/octar/internal/config"
-	"github.com/83codes/octar/internal/db"
+	"github.com/octarhq/octar/internal/config"
+	"github.com/octarhq/octar/internal/db"
 )
 
 func testJWTConfig() config.JWTProviderConfig {
@@ -253,5 +253,51 @@ func TestGenerateTokens_NoJWTConfig(t *testing.T) {
 	_, err := mgr.GenerateTokens(testUser("admin"))
 	if err == nil {
 		t.Fatal("expected error when no signing key configured")
+	}
+}
+
+func TestGenerateTokens_RSA(t *testing.T) {
+	// Test RSA key generation and token creation
+	cfg := config.JWTProviderConfig{
+		Enabled:         true,
+		KeyType:         "RSA",
+		AccessTokenTTL:  900,
+		RefreshTokenTTL: 604800,
+	}
+
+	mgr := NewManager(cfg, t.TempDir())
+	if mgr == nil {
+		t.Fatal("expected non-nil RSA manager")
+	}
+
+	if mgr.keyStore == nil {
+		t.Fatal("expected RSA keys to be generated")
+	}
+
+	tokens, err := mgr.GenerateTokens(testUser("admin"))
+	if err != nil {
+		t.Fatalf("GenerateTokens with RSA failed: %v", err)
+	}
+
+	if tokens == nil {
+		t.Fatal("expected non-nil tokens with RSA")
+	}
+
+	if tokens.AccessToken == "" {
+		t.Fatal("expected non-empty access token with RSA")
+	}
+
+	// Verify the RSA token can be verified
+	claims, err := mgr.VerifyAccessToken(tokens.AccessToken)
+	if err != nil {
+		t.Fatalf("VerifyAccessToken with RSA failed: %v", err)
+	}
+
+	if claims == nil {
+		t.Fatal("expected non-nil claims from RSA token")
+	}
+
+	if claims.Subject != "testuser" {
+		t.Errorf("expected subject testuser, got %s", claims.Subject)
 	}
 }

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/83codes/octar/internal/config"
-	"github.com/83codes/octar/internal/protocol"
+	"github.com/octarhq/octar/internal/config"
+	"github.com/octarhq/octar/internal/protocol"
 )
 
 func TestCredit_AcquireRelease(t *testing.T) {
@@ -99,12 +99,12 @@ func TestCredit_ConcurrentMaxNotExceeded(t *testing.T) {
 			defer wg.Done()
 			if c.AcquireCredit() {
 				current := c.Inflight()
-	for {
-		prev := maxSeen.Load()
-		if current <= prev || maxSeen.CompareAndSwap(prev, current) {
-			break
-		}
-	}
+				for {
+					prev := maxSeen.Load()
+					if current <= prev || maxSeen.CompareAndSwap(prev, current) {
+						break
+					}
+				}
 				<-gate
 				c.ReleaseCredit()
 			}
@@ -119,7 +119,6 @@ func TestCredit_ConcurrentMaxNotExceeded(t *testing.T) {
 		t.Fatalf("inflight exceeded max: %d > 5", ms)
 	}
 }
-
 
 func TestTokenBucket_Basic(t *testing.T) {
 	tb := newTokenBucket(100, 100)
@@ -239,9 +238,9 @@ func TestConnection_WriterLoopMultipleTypes(t *testing.T) {
 		client.Close()
 	}()
 
-	conn.WritePublishOK(protocol.PublishOKFrame{MsgID: "pok-1", Offset: 42})
-	conn.WriteError(protocol.ErrorFrame{Code: 500, Message: "internal error"})
-	conn.WriteHeartbeat()
+	_ = conn.WritePublishOK(protocol.PublishOKFrame{MsgID: "pok-1", Offset: 42})
+	_ = conn.WriteError(protocol.ErrorFrame{Code: 500, Message: "internal error"})
+	_ = conn.WriteHeartbeat()
 
 	dec := protocol.NewDecoder(bufio.NewReader(client))
 
@@ -406,7 +405,7 @@ func TestConnection_ReadFrameNoDeadline(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		conn.ReadFrame()
+		_, _, _ = conn.ReadFrame()
 	}()
 
 	time.Sleep(50 * time.Millisecond)
@@ -418,7 +417,7 @@ func TestConnection_ReadFrameNoDeadline(t *testing.T) {
 	}
 
 	enc := protocol.NewEncoder(client)
-	enc.WriteHeartbeat()
+	_ = enc.WriteHeartbeat()
 	enc.Flush()
 
 	select {
@@ -436,7 +435,7 @@ func TestConnection_WritePublishOK(t *testing.T) {
 		client.Close()
 	}()
 
-	conn.WritePublishOK(protocol.PublishOKFrame{MsgID: "m1", Offset: 100})
+	_ = conn.WritePublishOK(protocol.PublishOKFrame{MsgID: "m1", Offset: 100})
 
 	dec := protocol.NewDecoder(bufio.NewReader(client))
 	ft, v, err := dec.ReadFrame()
@@ -460,7 +459,7 @@ func TestConnection_WriteError(t *testing.T) {
 		client.Close()
 	}()
 
-	conn.WriteError(protocol.ErrorFrame{Code: 404, Message: "not found"})
+	_ = conn.WriteError(protocol.ErrorFrame{Code: 404, Message: "not found"})
 
 	dec := protocol.NewDecoder(bufio.NewReader(client))
 	ft, v, err := dec.ReadFrame()
@@ -718,7 +717,7 @@ func TestConnection_ConcurrentWriteAndClose(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			conn.WriteMessage(protocol.MessageFrame{
+			_ = conn.WriteMessage(protocol.MessageFrame{
 				MsgID: "race", Queue: "q", Group: "g",
 				Payload: []byte("data"), Attempts: 1,
 			})
@@ -759,10 +758,10 @@ func TestConnection_WriteMultipleFrameTypesThenClose(t *testing.T) {
 	defer conn.Close()
 	defer client.Close()
 
-	conn.WritePublishOK(protocol.PublishOKFrame{MsgID: "m1", Offset: 1})
-	conn.WriteError(protocol.ErrorFrame{Code: 500, Message: "err"})
-	conn.WriteBackpressure(protocol.BackpressureFrame{Reason: "slow", RetryAfter: 100})
-	conn.WriteHeartbeat()
+	_ = conn.WritePublishOK(protocol.PublishOKFrame{MsgID: "m1", Offset: 1})
+	_ = conn.WriteError(protocol.ErrorFrame{Code: 500, Message: "err"})
+	_ = conn.WriteBackpressure(protocol.BackpressureFrame{Reason: "slow", RetryAfter: 100})
+	_ = conn.WriteHeartbeat()
 
 	dec := protocol.NewDecoder(bufio.NewReader(client))
 	for i := 0; i < 4; i++ {
@@ -860,7 +859,7 @@ func TestConnection_PingPongHeartbeats(t *testing.T) {
 	defer client.Close()
 
 	for i := 0; i < 10; i++ {
-		conn.WriteHeartbeat()
+		_ = conn.WriteHeartbeat()
 	}
 
 	dec := protocol.NewDecoder(bufio.NewReader(client))
@@ -886,7 +885,7 @@ func TestConnection_AuthWithBadConnectFrame(t *testing.T) {
 
 	go func() {
 		enc := protocol.NewEncoder(client)
-		enc.WritePublish(protocol.PublishFrame{Queue: "q", Group: "g", Payload: []byte("x")})
+		_ = enc.WritePublish(protocol.PublishFrame{Queue: "q", Group: "g", Payload: []byte("x")})
 		enc.Flush()
 	}()
 
@@ -907,7 +906,7 @@ func TestConnection_AuthWithPartialConnectFrame(t *testing.T) {
 	go func() {
 		conn2 := newConnection(client, config.InflightConfig{MaxInflight: 10}, 0, 0)
 		defer conn2.Close()
-		conn2.WritePublishOK(protocol.PublishOKFrame{MsgID: "x", Offset: 0})
+		_ = conn2.WritePublishOK(protocol.PublishOKFrame{MsgID: "x", Offset: 0})
 	}()
 
 	time.Sleep(50 * time.Millisecond)

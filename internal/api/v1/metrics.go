@@ -7,7 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/83codes/octar/internal/scheduler"
+	"github.com/octarhq/octar/internal/scheduler"
 )
 
 type metricsOutput struct {

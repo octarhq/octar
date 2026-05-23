@@ -39,7 +39,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/83codes/octar/internal/protocol"
+	"github.com/octarhq/octar/internal/protocol"
 )
 
 // ── Shared counters (all atomic) ─────────────────────────────────────────────
@@ -97,6 +97,11 @@ func dial(addr, user, pass, ns string) (*client, error) {
 
 // ── Publisher ─────────────────────────────────────────────────────────────────
 
+// pipelineDepth controla quantos publishes ficam em voo ao mesmo tempo.
+// pipeline=1 (original) limita throughput a 1/RTT por publisher.
+// pipeline=64 permite saturar o broker independentemente da latência de rede.
+const pipelineDepth = 64
+
 func runPublisher(id int, addr, user, pass, ns, queue, group string, payloadSize int, stop <-chan struct{}) {
 	c, err := dial(addr, user, pass, ns)
 	if err != nil {
@@ -106,14 +111,39 @@ func runPublisher(id int, addr, user, pass, ns, queue, group string, payloadSize
 	}
 	defer c.conn.Close()
 
-	// Payload: 8B timestamp prefix + zero-padded body
 	payload := make([]byte, max(payloadSize, 8))
 
+	// Semáforo: permite até pipelineDepth mensagens sem PublishOK ainda.
+	// O reader goroutine libera um slot para cada ACK recebido.
+	window := make(chan struct{}, pipelineDepth)
+	for range pipelineDepth {
+		window <- struct{}{}
+	}
+
+	// Reader: drena PublishOKs e libera o semáforo
+	go func() {
+		for {
+			ft, _, err := c.dec.ReadFrame()
+			if err != nil {
+				return
+			}
+			switch ft {
+			case protocol.FramePublishOK:
+				cntPublished.Add(1)
+				window <- struct{}{} // libera slot
+			case protocol.FrameError, protocol.FrameBackpressure:
+				cntErrors.Add(1)
+				window <- struct{}{} // libera slot mesmo em erro
+			}
+		}
+	}()
+
+	// Writer: envia assim que há slot disponível
 	for {
 		select {
 		case <-stop:
 			return
-		default:
+		case <-window: // aguarda slot
 		}
 
 		binary.BigEndian.PutUint64(payload[:8], uint64(time.Now().UnixNano()))
@@ -125,17 +155,6 @@ func runPublisher(id int, addr, user, pass, ns, queue, group string, payloadSize
 		}); err != nil {
 			cntErrors.Add(1)
 			return
-		}
-
-		ft, _, err := c.dec.ReadFrame()
-		if err != nil {
-			cntErrors.Add(1)
-			return
-		}
-		if ft == protocol.FramePublishOK {
-			cntPublished.Add(1)
-		} else {
-			cntErrors.Add(1)
 		}
 	}
 }
@@ -375,7 +394,7 @@ func apiLogin(apiAddr, user, pass string) string {
 	defer resp.Body.Close()
 	var result map[string]string
 	json.NewDecoder(resp.Body).Decode(&result)
-	token := result["token"]
+	token := result["access_token"]
 	if token == "" {
 		log.Fatalf("login failed — no token in response")
 	}
@@ -442,13 +461,13 @@ func main() {
 	queue := flag.String("queue", "stress-main", "queue name")
 	group := flag.String("group", "stress-group", "group key")
 	dlqQueue := flag.String("dlq-queue", "stress-dlq", "DLQ queue name")
-	publishers := flag.Int("publishers", 2, "publisher goroutines (each uses one TCP connection)")
-	subscribers := flag.Int("subscribers", 16, "subscriber goroutines (each uses one TCP connection)")
+	publishers := flag.Int("publishers", 256, "publisher goroutines (each uses one TCP connection)")
+	subscribers := flag.Int("subscribers", 64, "subscriber goroutines (each uses one TCP connection)")
 	nackRate := flag.Int("nack-rate", 10, "percentage of messages to NACK (0–100)")
 	payloadSize := flag.Int("payload-size", 64, "message payload size in bytes")
 	maxAttempts := flag.Int("max-attempts", 3, "max retry attempts before DLQ")
-	parallelism := flag.Int("parallelism", 10, "consumer parallelism per group")
-	duration := flag.Duration("duration", 6*time.Second, "test duration (0 = run until Ctrl+C)")
+	parallelism := flag.Int("parallelism", 20, "consumer parallelism per group")
+	duration := flag.Duration("duration", 30*time.Second, "test duration (0 = run until Ctrl+C)")
 	setup := flag.Bool("setup", true, "auto-create queues and configure DLQ via REST API")
 	flag.Parse()
 

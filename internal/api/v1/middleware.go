@@ -8,8 +8,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/83codes/octar/internal/auth"
-	"github.com/83codes/octar/internal/auth/identity"
+	"github.com/octarhq/octar/internal/auth"
+	"github.com/octarhq/octar/internal/auth/identity"
 )
 
 type contextKey string
@@ -66,5 +66,5 @@ func requireAuth(ctx context.Context) (*identity.Identity, error) {
 func writeJSONError(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]any{"title": msg, "status": status})
+	_ = json.NewEncoder(w).Encode(map[string]any{"title": msg, "status": status})
 }

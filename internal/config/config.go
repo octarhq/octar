@@ -37,29 +37,29 @@ type InflightConfig struct {
 
 // TLSConfig controls transport-layer security for both TCP and HTTP.
 type TLSConfig struct {
-	Enabled   bool   `mapstructure:"enabled" doc:"Enable TLS for TCP data plane and HTTP API"`
-	CertFile  string `mapstructure:"cert_file" doc:"Path to TLS certificate file (PEM)"`
-	KeyFile   string `mapstructure:"key_file" doc:"Path to TLS private key file (PEM)"`
-	CAFile    string `mapstructure:"ca_file" doc:"Optional path to CA cert for mTLS (TCP)"`
+	Enabled  bool   `mapstructure:"enabled" doc:"Enable TLS for TCP data plane and HTTP API"`
+	CertFile string `mapstructure:"cert_file" doc:"Path to TLS certificate file (PEM)"`
+	KeyFile  string `mapstructure:"key_file" doc:"Path to TLS private key file (PEM)"`
+	CAFile   string `mapstructure:"ca_file" doc:"Optional path to CA cert for mTLS (TCP)"`
 }
 
 // ServerConfig controls the TCP data-plane listener.
 type ServerConfig struct {
-	Host            string         `mapstructure:"host"`
-	Port            int            `mapstructure:"port"`
-	MaxConnections  int            `mapstructure:"max_connections"`
-	ConnRateLimit   int            `mapstructure:"conn_rate_limit"`     // max new connections/s (0 = unlimited)
-	GlobalMaxMsgs   int64          `mapstructure:"global_max_messages"` // max pending msgs system-wide (0 = unlimited)
-	ReadTimeout     time.Duration  `mapstructure:"read_timeout"`
-	WriteTimeout    time.Duration  `mapstructure:"write_timeout"`
-	TLS             TLSConfig      `mapstructure:"tls"`
-	Inflight        InflightConfig `mapstructure:"inflight"`
+	Host           string         `mapstructure:"host"`
+	Port           int            `mapstructure:"port"`
+	MaxConnections int            `mapstructure:"max_connections"`
+	ConnRateLimit  int            `mapstructure:"conn_rate_limit"`     // max new connections/s (0 = unlimited)
+	GlobalMaxMsgs  int64          `mapstructure:"global_max_messages"` // max pending msgs system-wide (0 = unlimited)
+	ReadTimeout    time.Duration  `mapstructure:"read_timeout"`
+	WriteTimeout   time.Duration  `mapstructure:"write_timeout"`
+	TLS            TLSConfig      `mapstructure:"tls"`
+	Inflight       InflightConfig `mapstructure:"inflight"`
 }
 
 // APIConfig controls the HTTP management API listener.
 type APIConfig struct {
-	Host string `mapstructure:"host"`
-	Port int    `mapstructure:"port"`
+	Host string    `mapstructure:"host"`
+	Port int       `mapstructure:"port"`
 	TLS  TLSConfig `mapstructure:"tls"` // reuses same TLS config schema
 }
 
@@ -172,8 +172,10 @@ type WALConfig struct {
 	FlushMaxMessages int `mapstructure:"flush_max_messages"`
 	// SegmentMaxBytes rotates the active segment when it reaches this size.
 	SegmentMaxBytes int64 `mapstructure:"segment_max_bytes"`
-	// Sync calls fsync after each flush. Disable for higher throughput at lower durability.
-	Sync bool `mapstructure:"sync"`
+	// Durable calls fsync after each flush, guaranteeing messages survive power loss.
+	// Disable per-queue for higher throughput when losing messages on power loss is acceptable.
+	// Default: true. Override per-queue via POST /queues with {"durable": false}.
+	Durable bool `mapstructure:"durable"`
 	// SnapshotInterval writes a snapshot for fast recovery every N seconds.
 	SnapshotInterval time.Duration `mapstructure:"snapshot_interval"`
 }
@@ -238,10 +240,10 @@ func Load() (*Config, error) {
 	viper.SetDefault("api.host", "0.0.0.0")
 	viper.SetDefault("api.port", 8080)
 
-	viper.SetDefault("storage.wal.flush_interval", 10*time.Millisecond)
+	viper.SetDefault("storage.wal.flush_interval", 25*time.Millisecond)
 	viper.SetDefault("storage.wal.flush_max_messages", 1000)
 	viper.SetDefault("storage.wal.segment_max_bytes", 512<<20)
-	viper.SetDefault("storage.wal.sync", true)
+	viper.SetDefault("storage.wal.durable", true)
 	viper.SetDefault("storage.wal.snapshot_interval", 60*time.Second)
 	viper.SetDefault("storage.snapshot.interval", 5*time.Minute)
 

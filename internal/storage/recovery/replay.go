@@ -7,9 +7,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/83codes/octar/internal/storage"
-	"github.com/83codes/octar/internal/storage/snapshot"
 	"log/slog"
+
+	"github.com/octarhq/octar/internal/storage"
+	"github.com/octarhq/octar/internal/storage/snapshot"
 )
 
 // ReplayHandler receives WAL events during a plain segment replay.

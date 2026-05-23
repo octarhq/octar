@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/83codes/octar/internal/xtime"
+	"github.com/octarhq/octar/internal/xtime"
 )
 
 type MessageState int8

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/83codes/octar/internal/queue"
+	"github.com/octarhq/octar/internal/queue"
 )
 
 // TestRestart_CleanShutdown verifies that a clean stop + start recovers all state.

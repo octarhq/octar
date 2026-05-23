@@ -1,4 +1,4 @@
-module github.com/83codes/octar
+module github.com/octarhq/octar
 
 go 1.26.3
 

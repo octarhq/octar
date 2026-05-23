@@ -32,7 +32,7 @@ func walConfig() WALConfig {
 		FlushInterval:    50 * time.Millisecond,
 		FlushMaxMessages: 100,
 		SegmentMaxBytes:  256 * 1024,
-		Sync:             true,
+		Durable:          true,
 	}
 }
 
@@ -115,7 +115,7 @@ var errDiskFull = errors.New("no space left on device")
 // safeClose recovers from double-close panics so it can be used in t.Cleanup
 // even when the test body already called Close explicitly.
 func safeClose(w *WAL) {
-	defer func() { recover() }()
+	defer func() { _ = recover() }()
 	w.Close()
 }
 
@@ -420,7 +420,7 @@ func TestWAL_DiskFull(t *testing.T) {
 	dir := t.TempDir()
 	cfg := walConfig()
 	cfg.FlushMaxMessages = 1
-	cfg.Sync = false
+	cfg.Durable = false
 	cfg.FlushInterval = time.Hour
 	w, err := NewWAL(dir, cfg)
 	if err != nil {
@@ -715,9 +715,9 @@ func TestWAL_DestroyQueue(t *testing.T) {
 
 	for i := range 5 {
 		e := testEvent(EventPublish, "ns", "q-a", "g", fmt.Sprintf("m-%d", i), []byte("a"))
-		w.AppendSync(e)
+		_ = w.AppendSync(e)
 		e = testEvent(EventPublish, "ns", "q-b", "g", fmt.Sprintf("m-%d", i), []byte("b"))
-		w.AppendSync(e)
+		_ = w.AppendSync(e)
 	}
 
 	qwa := w.GetQueue("ns", "q-a")
@@ -769,7 +769,7 @@ func TestWAL_VisitQueues(t *testing.T) {
 	}
 	for _, q := range queues {
 		e := testEvent(EventPublish, q.ns, q.q, "g", "m1", nil)
-		w.AppendSync(e)
+		_ = w.AppendSync(e)
 	}
 	w.Close()
 
@@ -816,7 +816,7 @@ func TestWAL_Healthy(t *testing.T) {
 	}
 
 	e := testEvent(EventPublish, "ns", "q", "g", "m1", nil)
-	w.AppendSync(e)
+	_ = w.AppendSync(e)
 
 	if !w.Healthy() {
 		t.Error("expected Healthy()=true with only healthy queues")
@@ -826,7 +826,7 @@ func TestWAL_Healthy(t *testing.T) {
 	}
 
 	e = testEvent(EventPublish, "ns2", "q2", "g", "m1", nil)
-	w.AppendSync(e)
+	_ = w.AppendSync(e)
 	qw := w.GetQueue("ns2", "q2")
 	qw.SetErr(ErrWALFailed)
 
@@ -851,7 +851,7 @@ func TestWAL_Close(t *testing.T) {
 
 	for i := range 10 {
 		e := testEvent(EventPublish, "ns", "q", "g", fmt.Sprintf("m-%d", i), []byte("data"))
-		w.AppendSync(e)
+		_ = w.AppendSync(e)
 	}
 
 	qw := w.GetQueue("ns", "q")
@@ -993,4 +993,128 @@ func TestWAL_ChannelFull(t *testing.T) {
 	}
 
 	qw.ch = origCh
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 20. Per-queue durable override
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// TestWAL_DefaultDurable verifica que DefaultDurable retorna o valor global.
+func TestWAL_DefaultDurable(t *testing.T) {
+	dir := t.TempDir()
+
+	cfg := walConfig()
+	cfg.Durable = true
+	w, _ := NewWAL(dir, cfg)
+	defer w.Close()
+
+	if !w.DefaultDurable() {
+		t.Fatal("DefaultDurable deve retornar true quando cfg.Durable=true")
+	}
+
+	cfg2 := walConfig()
+	cfg2.Durable = false
+	w2, _ := NewWAL(t.TempDir(), cfg2)
+	defer w2.Close()
+
+	if w2.DefaultDurable() {
+		t.Fatal("DefaultDurable deve retornar false quando cfg.Durable=false")
+	}
+}
+
+// TestWAL_QueueDurable_FallsBackToGlobal verifica que filas sem override herdam o global.
+func TestWAL_QueueDurable_FallsBackToGlobal(t *testing.T) {
+	dir := t.TempDir()
+	cfg := walConfig()
+	cfg.Durable = true
+	w, _ := NewWAL(dir, cfg)
+	defer w.Close()
+
+	// Sem override — deve retornar o global
+	if !w.QueueDurable("ns", "myqueue") {
+		t.Fatal("sem override deve retornar global (true)")
+	}
+}
+
+// TestWAL_SetQueueDurable_OverridesGlobal verifica o override por fila antes de criar o WAL.
+func TestWAL_SetQueueDurable_OverridesGlobal(t *testing.T) {
+	dir := t.TempDir()
+	cfg := walConfig()
+	cfg.Durable = true // global = durable
+	w, _ := NewWAL(dir, cfg)
+	defer w.Close()
+
+	// Override: esta fila não é durable
+	w.SetQueueDurable("ns", "fast-queue", false)
+
+	if w.QueueDurable("ns", "fast-queue") {
+		t.Fatal("fila com durable=false não deve retornar true")
+	}
+	// Fila sem override mantém o global
+	if !w.QueueDurable("ns", "other-queue") {
+		t.Fatal("fila sem override deve herdar global (true)")
+	}
+}
+
+// TestWAL_SetQueueDurable_AfterFirstMessage verifica que o override aplicado APÓS
+// a primeira mensagem atualiza o cfg do QueueWAL já existente.
+func TestWAL_SetQueueDurable_AfterFirstMessage(t *testing.T) {
+	dir := t.TempDir()
+	cfg := walConfig()
+	cfg.Durable = true
+	w, _ := NewWAL(dir, cfg)
+	defer w.Close()
+
+	// Primeira mensagem — cria o QueueWAL com Durable=true
+	e := testEvent(EventPublish, "ns", "late-queue", "g", "m1", []byte("x"))
+	if err := w.AppendSync(e); err != nil {
+		t.Fatalf("AppendSync: %v", err)
+	}
+
+	qw := w.GetQueue("ns", "late-queue")
+	if qw == nil {
+		t.Fatal("QueueWAL não criado")
+	}
+	if !qw.cfg.Durable {
+		t.Fatal("queueWAL deve iniciar com Durable=true (global)")
+	}
+
+	// Override aplicado DEPOIS da criação
+	w.SetQueueDurable("ns", "late-queue", false)
+
+	qw.mu.Lock()
+	durableAfter := qw.cfg.Durable
+	qw.mu.Unlock()
+
+	if durableAfter {
+		t.Fatal("SetQueueDurable deve atualizar o QueueWAL existente")
+	}
+	if w.QueueDurable("ns", "late-queue") {
+		t.Fatal("QueueDurable deve refletir o override")
+	}
+}
+
+// TestWAL_NonDurableQueue_WritesEvents verifica que uma fila não-durable
+// ainda grava eventos corretamente (só sem fsync).
+func TestWAL_NonDurableQueue_WritesEvents(t *testing.T) {
+	dir := t.TempDir()
+	cfg := walConfig()
+	cfg.Durable = false
+	w, _ := NewWAL(dir, cfg)
+
+	const n = 20
+	for i := range n {
+		e := testEvent(EventPublish, "ns", "q", "g", fmt.Sprintf("msg-%d", i), []byte("payload"))
+		if err := w.AppendSync(e); err != nil {
+			t.Fatalf("AppendSync(%d): %v", i, err)
+		}
+	}
+
+	qw := w.GetQueue("ns", "q")
+	w.Close() // fecha uma única vez; não usar defer aqui
+
+	events := readAllEvents(t, qw.dir)
+	if len(events) != n {
+		t.Fatalf("esperava %d eventos, got %d", n, len(events))
+	}
 }

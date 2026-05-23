@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/83codes/octar/internal/config"
-	"github.com/83codes/octar/internal/queue"
-	"github.com/83codes/octar/internal/scheduler"
-	stg "github.com/83codes/octar/internal/storage"
-	"github.com/83codes/octar/internal/storage/recovery"
-	"github.com/83codes/octar/internal/storage/snapshot"
+	"github.com/octarhq/octar/internal/config"
+	"github.com/octarhq/octar/internal/queue"
+	"github.com/octarhq/octar/internal/scheduler"
+	stg "github.com/octarhq/octar/internal/storage"
+	"github.com/octarhq/octar/internal/storage/recovery"
+	"github.com/octarhq/octar/internal/storage/snapshot"
 )
 
 // Harness manages a broker lifecycle for chaos tests.
@@ -47,7 +47,7 @@ func New(t *testing.T) *Harness {
 				FlushInterval:    50 * time.Millisecond,
 				FlushMaxMessages: 100,
 				SegmentMaxBytes:  64 << 20,
-				Sync:             true,
+				Durable:          true,
 			},
 		},
 	}
@@ -56,7 +56,7 @@ func New(t *testing.T) *Harness {
 		FlushInterval:    50 * time.Millisecond,
 		FlushMaxMessages: 100,
 		SegmentMaxBytes:  64 << 20,
-		Sync:             true,
+		Durable:          true,
 	})
 	if err != nil {
 		t.Fatalf("NewWAL: %v", err)
@@ -154,7 +154,7 @@ func (h *Harness) Restart() {
 		FlushInterval:    50 * time.Millisecond,
 		FlushMaxMessages: 100,
 		SegmentMaxBytes:  64 << 20,
-		Sync:             true,
+		Durable:          true,
 	})
 	if err != nil {
 		h.t.Fatalf("Restart NewWAL: %v", err)
@@ -225,7 +225,7 @@ func (h *recoveryHandler) OnSnapshot(snap *snapshot.Snapshot) {
 }
 
 func (h *recoveryHandler) OnPublish(event stg.Event) {
-	h.q.PublishWithID(event.Group, event.MsgID, event.Payload)
+	_, _ = h.q.PublishWithID(event.Group, event.MsgID, event.Payload)
 }
 
 func (h *recoveryHandler) OnLease(event stg.Event) {

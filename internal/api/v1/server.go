@@ -11,10 +11,10 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 
-	"github.com/83codes/octar/internal/auth"
-	"github.com/83codes/octar/internal/broker"
-	"github.com/83codes/octar/internal/db"
-	"github.com/83codes/octar/internal/scheduler"
+	"github.com/octarhq/octar/internal/auth"
+	"github.com/octarhq/octar/internal/broker"
+	"github.com/octarhq/octar/internal/db"
+	"github.com/octarhq/octar/internal/scheduler"
 )
 
 // bearerAuth is the security requirement applied to every protected operation.
@@ -68,7 +68,7 @@ func NewServer(port int, store *db.Store, authSvc *auth.Service, sched *schedule
 	// Stoplight Elements — better "Try it" UX with built-in auth support.
 	router.Get("/docs", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write([]byte(stoplightHTML))
+		_, _ = w.Write([]byte(stoplightHTML))
 	})
 
 	s := &Server{

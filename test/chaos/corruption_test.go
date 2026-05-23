@@ -83,7 +83,7 @@ func TestCorruption_Snapshot(t *testing.T) {
 	}
 
 	// Force a snapshot
-	h.Wal.GetQueue("test-ns", "corrupt-snap").SaveSnapshot()
+	_ = h.Wal.GetQueue("test-ns", "corrupt-snap").SaveSnapshot()
 
 	qDir := filepath.Join(h.WalDir, "test-ns", "corrupt-snap")
 

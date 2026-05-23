@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/83codes/octar/internal/queue"
+	"github.com/octarhq/octar/internal/queue"
 )
 
 func TestRegisterGetQueue(t *testing.T) {
@@ -145,8 +145,8 @@ func TestActivateDispatch_Backpressure(t *testing.T) {
 	q := queue.NewQueue("test-q", "test-ns")
 	s.RegisterQueue(q)
 
-	q.Publish("group-1", []byte("m1"))
-	q.Publish("group-1", []byte("m2"))
+	_, _ = q.Publish("group-1", []byte("m1"))
+	_, _ = q.Publish("group-1", []byte("m2"))
 
 	dispatched := make(chan *queue.Message, 5)
 	s.Run(func(msg *queue.Message) bool {
@@ -183,9 +183,9 @@ func TestMultipleQueues(t *testing.T) {
 	s.RegisterQueue(q2)
 	s.RegisterQueue(q3)
 
-	q1.Publish("g1", []byte("from-q1"))
-	q2.Publish("g1", []byte("from-q2"))
-	q3.Publish("g1", []byte("from-q3"))
+	_, _ = q1.Publish("g1", []byte("from-q1"))
+	_, _ = q2.Publish("g1", []byte("from-q2"))
+	_, _ = q3.Publish("g1", []byte("from-q3"))
 
 	var mu sync.Mutex
 	var dispatched []string
@@ -233,7 +233,7 @@ func TestRunOnlyOnce(t *testing.T) {
 
 	q := queue.NewQueue("test-q", "test-ns")
 	s.RegisterQueue(q)
-	q.Publish("g1", []byte("data"))
+	_, _ = q.Publish("g1", []byte("data"))
 	s.Activate(q, "g1")
 
 	time.Sleep(100 * time.Millisecond)
@@ -264,7 +264,7 @@ func TestMetrics(t *testing.T) {
 
 	q := queue.NewQueue("test-q", "test-ns")
 	s.RegisterQueue(q)
-	q.Publish("g1", []byte("data"))
+	_, _ = q.Publish("g1", []byte("data"))
 
 	dispatched := make(chan struct{}, 1)
 	s.Run(func(msg *queue.Message) bool {
@@ -306,7 +306,7 @@ func TestConcurrentRegisterActivate(t *testing.T) {
 			defer wg.Done()
 			q := queue.NewQueue("q", "ns")
 			s.RegisterQueue(q)
-			q.Publish("g1", []byte("data"))
+			_, _ = q.Publish("g1", []byte("data"))
 			s.Activate(q, "g1")
 			_ = n
 		}(i)
@@ -329,7 +329,7 @@ func TestConcurrentActivateSameGroup(t *testing.T) {
 	s.RegisterQueue(q)
 
 	for range 1000 {
-		q.Publish("g1", []byte("data"))
+		_, _ = q.Publish("g1", []byte("data"))
 	}
 
 	var dispatched atomic.Int64
@@ -383,7 +383,7 @@ func TestScheduler_ActivateBeforeRun(t *testing.T) {
 
 	q := queue.NewQueue("test-q", "test-ns")
 	s.RegisterQueue(q)
-	q.Publish("g1", []byte("data"))
+	_, _ = q.Publish("g1", []byte("data"))
 
 	s.Activate(q, "g1")
 
@@ -407,9 +407,9 @@ func TestScheduler_MultipleGroupsSameQueue(t *testing.T) {
 	q := queue.NewQueue("test-q", "test-ns")
 	s.RegisterQueue(q)
 
-	q.Publish("g1", []byte("from-g1"))
-	q.Publish("g2", []byte("from-g2"))
-	q.Publish("g3", []byte("from-g3"))
+	_, _ = q.Publish("g1", []byte("from-g1"))
+	_, _ = q.Publish("g2", []byte("from-g2"))
+	_, _ = q.Publish("g3", []byte("from-g3"))
 
 	var mu sync.Mutex
 	dispatched := make(map[string]int)
@@ -459,7 +459,7 @@ func TestScheduler_WakeAfterRetry(t *testing.T) {
 		},
 	})
 
-	q.Publish("g1", []byte("data"))
+	_, _ = q.Publish("g1", []byte("data"))
 
 	dispatched := make(chan *queue.Message, 10)
 	s.Run(func(msg *queue.Message) bool {
@@ -471,7 +471,7 @@ func TestScheduler_WakeAfterRetry(t *testing.T) {
 
 	select {
 	case msg := <-dispatched:
-		q.Fail("g1", msg.ID, "test error")
+		_, _, _ = q.Fail("g1", msg.ID, "test error")
 		s.Activate(q, "g1")
 	case <-time.After(time.Second):
 		t.Fatal("timeout waiting for first dispatch")

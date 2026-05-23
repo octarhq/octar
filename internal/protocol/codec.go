@@ -14,8 +14,8 @@ var byteWriterPool = sync.Pool{
 }
 
 const (
-	headerSize     = 5             // type(1) + length(4)
-	maxPayloadSize = 16 << 20      // 16 MB hard cap per frame
+	headerSize     = 5        // type(1) + length(4)
+	maxPayloadSize = 16 << 20 // 16 MB hard cap per frame
 )
 
 // Encoder writes binary frames to an io.Writer.
@@ -28,9 +28,11 @@ type Encoder struct {
 	bw *bufio.Writer
 }
 
-// NewEncoder wraps w for frame encoding (4 KB write buffer).
+// NewEncoder wraps w for frame encoding (64 KB write buffer).
+// Matches the Decoder's buffer size and reduces WSASend/write syscall frequency
+// under high-throughput workloads where many small frames are batched together.
 func NewEncoder(w io.Writer) *Encoder {
-	return &Encoder{bw: bufio.NewWriterSize(w, 4096)}
+	return &Encoder{bw: bufio.NewWriterSize(w, 64*1024)}
 }
 
 // Decoder reads binary frames from an io.Reader.

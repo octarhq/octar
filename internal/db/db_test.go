@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/83codes/octar/internal/config"
+	"github.com/octarhq/octar/internal/config"
 )
 
 func newTestStore(t *testing.T) *Store {
@@ -618,7 +618,7 @@ func TestStore_DeleteGroupConfig(t *testing.T) {
 	ns := newTestNamespace(t, s, "delgrp-ns")
 	q := newTestQueue(t, s, ns, "delgrp-queue")
 
-	s.UpsertGroupConfig(q.ID, "del-me", `{}`)
+	_ = s.UpsertGroupConfig(q.ID, "del-me", `{}`)
 
 	err := s.DeleteGroupConfig(q.ID, "del-me")
 	if err != nil {
@@ -649,7 +649,7 @@ func TestStore_ListGroups(t *testing.T) {
 
 	keys := []string{"group-a", "group-b", "group-c"}
 	for _, k := range keys {
-		s.UpsertGroupConfig(q.ID, k, `{"key":"`+k+`"}`)
+		_ = s.UpsertGroupConfig(q.ID, k, `{"key":"`+k+`"}`)
 	}
 
 	groups, err := s.ListGroups(q.ID)
@@ -790,7 +790,7 @@ func TestStore_GetSession_NotFound(t *testing.T) {
 func TestStore_DeleteSession(t *testing.T) {
 	s := newTestStore(t)
 
-	s.CreateSession("del-sess", "user1", "USER", "127.0.0.1", nil)
+	_ = s.CreateSession("del-sess", "user1", "USER", "127.0.0.1", nil)
 
 	err := s.DeleteSession("del-sess")
 	if err != nil {
@@ -808,7 +808,7 @@ func TestStore_DeleteSession(t *testing.T) {
 func TestStore_SetUserNamespacePermissionsByName(t *testing.T) {
 	s := newTestStore(t)
 
-	s.CreateUser("perm-user", "pass", "", "consumer")
+	_ = s.CreateUser("perm-user", "pass", "", "consumer")
 	_ = newTestNamespace(t, s, "perm-ns")
 
 	err := s.SetUserNamespacePermissionsByName("perm-user", "perm-ns", []string{"publish", "consume"})
@@ -858,7 +858,7 @@ func TestStore_AppendAndQueryAuditEvent(t *testing.T) {
 	}
 	var id, typ, subj string
 	var success bool
-	rows.Scan(&id, &typ, &subj, &success)
+	_ = rows.Scan(&id, &typ, &subj, &success)
 	if id != "audit-1" {
 		t.Errorf("expected audit-1, got %s", id)
 	}
@@ -876,10 +876,10 @@ func TestStore_AppendAndQueryAuditEvent(t *testing.T) {
 func TestStore_QueryAuditEvents_FilterBySubject(t *testing.T) {
 	s := newTestStore(t)
 
-	s.AppendAuditEvent(&AuditEvent{
+	_ = s.AppendAuditEvent(&AuditEvent{
 		ID: "audit-a", Type: "LOGIN", Timestamp: time.Now(), SubjectID: "alice", Success: true,
 	})
-	s.AppendAuditEvent(&AuditEvent{
+	_ = s.AppendAuditEvent(&AuditEvent{
 		ID: "audit-b", Type: "LOGIN", Timestamp: time.Now(), SubjectID: "bob", Success: true,
 	})
 
@@ -903,8 +903,8 @@ func TestStore_QueryAuditEvents_Limit(t *testing.T) {
 	s := newTestStore(t)
 
 	for i := range 10 {
-		s.AppendAuditEvent(&AuditEvent{
-			ID: string(rune('0'+i)), Type: "EVENT", Timestamp: time.Now(), Success: true,
+		_ = s.AppendAuditEvent(&AuditEvent{
+			ID: string(rune('0' + i)), Type: "EVENT", Timestamp: time.Now(), Success: true,
 		})
 	}
 
@@ -927,19 +927,28 @@ func TestStore_QueryAuditEvents_DirectCall(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	s.AppendAuditEvent(&AuditEvent{
+	err := s.AppendAuditEvent(&AuditEvent{
 		ID: "direct-1", Type: "LOGIN", Timestamp: time.Now(),
 		SubjectID: "alice", Success: true,
 		Metadata: map[string]string{"ip": "10.0.0.1"},
 	})
-	s.AppendAuditEvent(&AuditEvent{
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = s.AppendAuditEvent(&AuditEvent{
 		ID: "direct-2", Type: "LOGIN", Timestamp: time.Now(),
 		SubjectID: "bob", Success: false, Reason: "bad password",
 	})
-	s.AppendAuditEvent(&AuditEvent{
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = s.AppendAuditEvent(&AuditEvent{
 		ID: "direct-3", Type: "API_KEY_CREATED", Timestamp: time.Now(),
 		SubjectID: "alice", AuthMethod: "api_key", Namespace: "main", Success: true,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	events, err := s.QueryAuditEvents(ctx, AuditFilter{})
 	if err != nil {

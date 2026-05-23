@@ -5,7 +5,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/83codes/octar/internal/db"
+	"github.com/octarhq/octar/internal/db"
 )
 
 // dbError maps a db-layer sentinel error to the appropriate huma HTTP error.

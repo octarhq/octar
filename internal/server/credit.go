@@ -3,7 +3,7 @@ package server
 import (
 	"sync/atomic"
 
-	"github.com/83codes/octar/internal/config"
+	"github.com/octarhq/octar/internal/config"
 )
 
 type credit struct {
@@ -27,7 +27,7 @@ func (c *credit) AcquireCredit() bool {
 	}
 }
 
-func (c *credit) ReleaseCredit() { c.inflight.Add(-1) }
+func (c *credit) ReleaseCredit()  { c.inflight.Add(-1) }
 func (c *credit) Inflight() int32 { return c.inflight.Load() }
 
 func (c *credit) RecordDispatch(_ string) {}

@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/83codes/octar/internal/auth"
-	authidentity "github.com/83codes/octar/internal/auth/identity"
-	"github.com/83codes/octar/internal/config"
-	"github.com/83codes/octar/internal/db"
-	"github.com/83codes/octar/internal/protocol"
+	"github.com/octarhq/octar/internal/auth"
+	authidentity "github.com/octarhq/octar/internal/auth/identity"
+	"github.com/octarhq/octar/internal/config"
+	"github.com/octarhq/octar/internal/db"
+	"github.com/octarhq/octar/internal/protocol"
 )
 
 type Session struct {
@@ -25,15 +25,15 @@ type Session struct {
 type ConnHandler func(conn *Connection)
 
 type Connection struct {
-	Conn     net.Conn
-	Session  *Session
-	Identity *authidentity.Identity
-	enc      *protocol.Encoder
-	dec      *protocol.Decoder
-	outCh    chan any
-	stopCh   chan struct{}
+	Conn      net.Conn
+	Session   *Session
+	Identity  *authidentity.Identity
+	enc       *protocol.Encoder
+	dec       *protocol.Decoder
+	outCh     chan any
+	stopCh    chan struct{}
 	closeOnce sync.Once
-	credit   *credit
+	credit    *credit
 
 	readDeadline  time.Duration
 	writeDeadline time.Duration
@@ -61,8 +61,8 @@ func NewConnection(conn net.Conn, inflightCfg config.InflightConfig) *Connection
 }
 
 func (c *Connection) AcquireCredit() bool { return c.credit.AcquireCredit() }
-func (c *Connection) ReleaseCredit()       { c.credit.ReleaseCredit() }
-func (c *Connection) Inflight() int32      { return c.credit.Inflight() }
+func (c *Connection) ReleaseCredit()      { c.credit.ReleaseCredit() }
+func (c *Connection) Inflight() int32     { return c.credit.Inflight() }
 
 func (c *Connection) RecordDispatch(msgID string) { c.credit.RecordDispatch(msgID) }
 func (c *Connection) RecordACK(msgID string)      { c.credit.RecordACK(msgID) }
@@ -105,23 +105,23 @@ func (c *Connection) writerLoop() {
 func (c *Connection) writeMsg(msg any) {
 	switch m := msg.(type) {
 	case protocol.MessageFrame:
-		c.enc.WriteMessage(m)
+		_ = c.enc.WriteMessage(m)
 	case protocol.PublishOKFrame:
-		c.enc.WritePublishOK(m)
+		_ = c.enc.WritePublishOK(m)
 	case protocol.ErrorFrame:
-		c.enc.WriteError(m)
+		_ = c.enc.WriteError(m)
 	case protocol.ConnectErrFrame:
-		c.enc.WriteConnectErr(m)
+		_ = c.enc.WriteConnectErr(m)
 	case protocol.ConnectOKFrame:
-		c.enc.WriteConnectOK(m)
+		_ = c.enc.WriteConnectOK(m)
 	case protocol.BackpressureFrame:
-		c.enc.WriteBackpressure(m)
+		_ = c.enc.WriteBackpressure(m)
 	case struct{}:
-		c.enc.WriteHeartbeat()
+		_ = c.enc.WriteHeartbeat()
 	}
 }
 
-func (c *Connection) Authenticate(store *db.Store, authSvc *auth.Service) bool {
+func (c *Connection) Authenticate(_ *db.Store, authSvc *auth.Service) bool {
 	ft, frame, err := c.dec.ReadFrame()
 	if err != nil || ft != protocol.FrameConnect {
 		c.outCh <- protocol.ConnectErrFrame{Reason: "expected CONNECT frame"}
@@ -147,15 +147,11 @@ func (c *Connection) Authenticate(store *db.Store, authSvc *auth.Service) bool {
 		}
 	}
 
-	if identity == nil && store.CheckPassword(f.Username, f.Password) {
-		identity = &authidentity.Identity{
-			SubjectID:   f.Username,
-			SubjectType: authidentity.SubjectUser,
-			AccountID:   f.Username,
-			Namespace:   f.Namespace,
-			Roles:       []string{"user"},
-		}
-	}
+	// NOTE: store.CheckPassword was removed — it duplicated bcrypt work already
+	// done by PasswordAuthenticator inside AuthenticateTCP. Calling it here caused
+	// two bcrypt rounds per failed-password attempt, burning ~6% CPU in profiles.
+	// The PasswordAuthenticator (registered via auth.Service) is the single source
+	// of truth for password verification.
 
 	if identity == nil {
 		c.outCh <- protocol.ConnectErrFrame{Reason: "invalid credentials or namespace"}
@@ -178,7 +174,7 @@ func (c *Connection) Authenticate(store *db.Store, authSvc *auth.Service) bool {
 
 func (c *Connection) ReadFrame() (protocol.FrameType, any, error) {
 	if c.readDeadline > 0 {
-		c.Conn.SetReadDeadline(time.Now().Add(c.readDeadline))
+		_ = c.Conn.SetReadDeadline(time.Now().Add(c.readDeadline))
 	}
 	return c.dec.ReadFrame()
 }

@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/83codes/octar/internal/config"
-	"github.com/83codes/octar/internal/db"
+	"github.com/octarhq/octar/internal/config"
+	"github.com/octarhq/octar/internal/db"
 )
 
 func testService(t *testing.T) *Service {
@@ -220,12 +220,13 @@ func TestService_RefreshTokens_WithoutJWT(t *testing.T) {
 func TestService_VerifyToken_WithoutJWT(t *testing.T) {
 	svc := testService(t)
 
-	id, err := svc.VerifyToken("some-token")
-	if err != nil {
-		t.Fatalf("VerifyToken: %v", err)
+	// Now VerifyToken tries both JWT and API keys, so an invalid token returns error
+	id, err := svc.VerifyToken("invalid-token-that-is-not-jwt-or-apikey")
+	if err == nil {
+		t.Fatal("expected error for invalid token")
 	}
 	if id != nil {
-		t.Fatal("expected nil identity when JWT is not configured")
+		t.Fatal("expected nil identity for invalid token")
 	}
 }
 
@@ -264,5 +265,50 @@ func TestService_LoadDefaultPolicy(t *testing.T) {
 
 	if svc.policy == nil {
 		t.Fatal("expected policy to be initialized")
+	}
+}
+
+func TestService_VerifyToken_WithAPIKey(t *testing.T) {
+	svc := testService(t)
+
+	// Generate an API key
+	apiKey := svc.GenerateAPIKey("api-user", "main", []string{"publish", "consume"})
+
+	// VerifyToken should now accept API keys
+	id, err := svc.VerifyToken(apiKey)
+	if err != nil {
+		t.Fatalf("VerifyToken with API key: %v", err)
+	}
+	if id == nil {
+		t.Fatal("expected non-nil identity from API key")
+	}
+	if id.SubjectID != "api-user" {
+		t.Errorf("expected SubjectID 'api-user', got %s", id.SubjectID)
+	}
+	if id.AuthMethod != "API_KEY" {
+		t.Errorf("expected AuthMethod 'API_KEY', got %s", id.AuthMethod)
+	}
+}
+
+func TestService_VerifyToken_WithInvalidToken(t *testing.T) {
+	svc := testService(t)
+
+	// Should return error for invalid token
+	_, err := svc.VerifyToken("invalid.token.format.xyz")
+	if err == nil {
+		t.Fatal("expected error for invalid token")
+	}
+}
+
+func TestService_VerifyToken_RevokedAPIKey(t *testing.T) {
+	svc := testService(t)
+
+	apiKey := svc.GenerateAPIKey("revoked-user", "main", []string{"publish"})
+	svc.RevokeAPIKey(apiKey)
+
+	// VerifyToken should fail for revoked API key
+	_, err := svc.VerifyToken(apiKey)
+	if err == nil {
+		t.Fatal("expected error for revoked API key")
 	}
 }

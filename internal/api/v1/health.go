@@ -6,13 +6,13 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/83codes/octar/internal/broker"
+	"github.com/octarhq/octar/internal/broker"
 )
 
 type healthOutput struct {
 	Body struct {
-		Status  string `json:"status" example:"ok"`
-		Version string `json:"version" example:"0.1.0"`
+		Status  string        `json:"status" example:"ok"`
+		Version string        `json:"version" example:"0.1.0"`
 		Checks  []checkResult `json:"checks,omitempty"`
 	}
 }

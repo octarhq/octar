@@ -104,7 +104,9 @@ func (s *Store) DeleteUser(username string) error {
 	// Prevent removing the last admin — the system would become unmanageable.
 	if user.Role == "admin" {
 		var adminCount int
-		s.db.QueryRow("SELECT COUNT(*) FROM users WHERE role = 'admin'").Scan(&adminCount)
+		if err := s.db.QueryRow("SELECT COUNT(*) FROM users WHERE role = 'admin'").Scan(&adminCount); err != nil {
+			return err
+		}
 		if adminCount <= 1 {
 			return fmt.Errorf("%w: cannot delete the last admin user", ErrForbidden)
 		}

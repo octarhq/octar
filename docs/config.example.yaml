@@ -94,13 +94,19 @@ storage:
 
   wal:
     # Flush buffered events after this interval even if the buffer isn't full.
-    flush_interval: "10ms"
+    # 25ms is the recommended default on Windows (NTFS fsync overhead).
+    # On Linux with NVMe you can lower this to 5–10ms safely.
+    flush_interval: "25ms"
     # Flush immediately when this many events are buffered (regardless of interval).
     flush_max_messages: 1000
     # Rotate to a new segment file when the active segment reaches this size (512 MB).
     segment_max_bytes: 536870912
-    # Call fsync after each flush. Set false for maximum throughput with lower durability.
-    sync: true
+    # Global default: call fsync after each flush, guaranteeing messages survive power loss.
+    # Override per-queue via POST /queues with {"durable": false} for high-throughput
+    # ephemeral queues (notifications, cache invalidation, real-time analytics).
+    # true  → fsync (default) — survives power loss, ~25–50k msg/s on Windows
+    # false → OS buffer only  — survives process crash, 5–10x faster
+    durable: true
     # Write a snapshot of queue state for fast recovery every N seconds.
     snapshot_interval: "60s"
 

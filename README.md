@@ -88,7 +88,7 @@ echo "OCTAR_AUTH_DEFAULT_ADMIN_PASSWORD=my-secret" >> .env
 ## Building from Source
 
 ```bash
-git clone https://github.com/83codes/octar.git
+git clone https://github.com/octarhq/octar.git
 cd octar
 go build -o octard ./cmd/broker/
 go build -o octar  ./cmd/octar/

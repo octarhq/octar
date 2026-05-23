@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/83codes/octar/internal/config"
-	"github.com/83codes/octar/internal/protocol"
-	"github.com/83codes/octar/internal/queue"
-	"github.com/83codes/octar/internal/server"
+	"github.com/octarhq/octar/internal/config"
+	"github.com/octarhq/octar/internal/protocol"
+	"github.com/octarhq/octar/internal/queue"
+	"github.com/octarhq/octar/internal/server"
 )
 
 type frameResult struct {
@@ -126,7 +126,7 @@ func TestE2E_PublishSubscribeACK(t *testing.T) {
 
 	go b.handleConnection(conn)
 
-	w.WritePublish(protocol.PublishFrame{
+	_ = w.WritePublish(protocol.PublishFrame{
 		Queue:   "test-q",
 		Group:   "e2e-group",
 		Payload: []byte("e2e-payload"),
@@ -146,7 +146,9 @@ func TestE2E_PublishSubscribeACK(t *testing.T) {
 		t.Fatalf("expected Pending=1, got %d", stats.Pending)
 	}
 
-	w.WriteSubscribe(protocol.SubscribeFrame{Queue: "test-q", Group: "e2e-group"})
+	if err := w.WriteSubscribe(protocol.SubscribeFrame{Queue: "test-q", Group: "e2e-group"}); err != nil {
+		t.Fatalf("WriteSubscribe: %v", err)
+	}
 
 	ft, frame := awaitFrame(t, fch, 3*time.Second)
 	if ft != protocol.FrameMessage {
@@ -157,9 +159,11 @@ func TestE2E_PublishSubscribeACK(t *testing.T) {
 		t.Errorf("expected 'e2e-payload', got %s", string(msg.Payload))
 	}
 
-	w.WriteACK(protocol.ACKFrame{
+	if err := w.WriteACK(protocol.ACKFrame{
 		MsgID: msg.MsgID, Queue: "test-q", Group: "e2e-group",
-	})
+	}); err != nil {
+		t.Fatalf("WriteACK: %v", err)
+	}
 	time.Sleep(100 * time.Millisecond)
 
 	stats, _ = q.GetGroupStats("e2e-group")
@@ -190,9 +194,11 @@ func TestE2E_MultiGroupPublishSubscribe(t *testing.T) {
 
 	for i := range groupCount {
 		for range msgsPerGroup {
-			w.WritePublish(protocol.PublishFrame{
+			if err := w.WritePublish(protocol.PublishFrame{
 				Queue: "test-q", Group: groupKey(i), Payload: []byte("multi"),
-			})
+			}); err != nil {
+				t.Fatalf("WritePublish: %v", err)
+			}
 		}
 	}
 
@@ -205,7 +211,9 @@ func TestE2E_MultiGroupPublishSubscribe(t *testing.T) {
 	}
 
 	for i := range groupCount {
-		w.WriteSubscribe(protocol.SubscribeFrame{Queue: "test-q", Group: groupKey(i)})
+		if err := w.WriteSubscribe(protocol.SubscribeFrame{Queue: "test-q", Group: groupKey(i)}); err != nil {
+			t.Fatalf("WriteSubscribe: %v", err)
+		}
 	}
 
 	received := make(map[string]int)
@@ -258,9 +266,11 @@ func TestE2E_LoadBalanceTenGroups(t *testing.T) {
 
 	for i := range groupCount {
 		for range msgsPerGroup {
-			w.WritePublish(protocol.PublishFrame{
+			if err := w.WritePublish(protocol.PublishFrame{
 				Queue: "test-q", Group: groupKey10(i), Payload: []byte("lb10"),
-			})
+			}); err != nil {
+				t.Fatalf("WritePublish: %v", err)
+			}
 		}
 	}
 
@@ -272,7 +282,9 @@ func TestE2E_LoadBalanceTenGroups(t *testing.T) {
 	}
 
 	for i := range groupCount {
-		w.WriteSubscribe(protocol.SubscribeFrame{Queue: "test-q", Group: groupKey10(i)})
+		if err := w.WriteSubscribe(protocol.SubscribeFrame{Queue: "test-q", Group: groupKey10(i)}); err != nil {
+			t.Fatalf("WriteSubscribe: %v", err)
+		}
 	}
 
 	received := make(map[string]int)
@@ -331,16 +343,20 @@ func TestE2E_NACKRetryDLQ(t *testing.T) {
 
 	go b.handleConnection(conn)
 
-	w.WritePublish(protocol.PublishFrame{
+	if err := w.WritePublish(protocol.PublishFrame{
 		Queue: "test-q", Group: "retry-group", Payload: []byte("nack-test"),
-	})
+	}); err != nil {
+		t.Fatalf("WritePublish: %v", err)
+	}
 
 	ft, _ := awaitFrame(t, fch, time.Second)
 	if ft != protocol.FramePublishOK {
 		t.Fatalf("expected FramePublishOK, got %v", ft)
 	}
 
-	w.WriteSubscribe(protocol.SubscribeFrame{Queue: "test-q", Group: "retry-group"})
+	if err := w.WriteSubscribe(protocol.SubscribeFrame{Queue: "test-q", Group: "retry-group"}); err != nil {
+		t.Fatalf("WriteSubscribe: %v", err)
+	}
 
 	ft, frame := awaitFrame(t, fch, 3*time.Second)
 	if ft != protocol.FrameMessage {
@@ -348,9 +364,11 @@ func TestE2E_NACKRetryDLQ(t *testing.T) {
 	}
 	msg := frame.(protocol.MessageFrame)
 
-	w.WriteNACK(protocol.NACKFrame{
+	if err := w.WriteNACK(protocol.NACKFrame{
 		MsgID: msg.MsgID, Queue: "test-q", Group: "retry-group",
-	})
+	}); err != nil {
+		t.Fatalf("WriteNACK: %v", err)
+	}
 
 	ft, frame = awaitFrame(t, fch, 5*time.Second)
 	if ft != protocol.FrameMessage {
@@ -358,9 +376,11 @@ func TestE2E_NACKRetryDLQ(t *testing.T) {
 	}
 	msg2 := frame.(protocol.MessageFrame)
 
-	w.WriteNACK(protocol.NACKFrame{
+	if err := w.WriteNACK(protocol.NACKFrame{
 		MsgID: msg2.MsgID, Queue: "test-q", Group: "retry-group",
-	})
+	}); err != nil {
+		t.Fatalf("WriteNACK: %v", err)
+	}
 
 	time.Sleep(200 * time.Millisecond)
 	stats, ok := dlqQ.GetGroupStats("retry-group")
@@ -414,15 +434,21 @@ func TestE2E_MultipleConnections(t *testing.T) {
 	go b.handleConnection(subConn2)
 
 	// Subscribe both via pipe (the real client path)
-	subW1.WriteSubscribe(protocol.SubscribeFrame{Queue: "test-q", Group: "shared-group"})
-	subW2.WriteSubscribe(protocol.SubscribeFrame{Queue: "test-q", Group: "shared-group"})
+	if err := subW1.WriteSubscribe(protocol.SubscribeFrame{Queue: "test-q", Group: "shared-group"}); err != nil {
+		t.Fatalf("WriteSubscribe 1: %v", err)
+	}
+	if err := subW2.WriteSubscribe(protocol.SubscribeFrame{Queue: "test-q", Group: "shared-group"}); err != nil {
+		t.Fatalf("WriteSubscribe 2: %v", err)
+	}
 	time.Sleep(100 * time.Millisecond)
 
 	// Publish 6 messages via the publisher connection (3× quantum)
 	for range 6 {
-		pubW.WritePublish(protocol.PublishFrame{
+		if err := pubW.WritePublish(protocol.PublishFrame{
 			Queue: "test-q", Group: "shared-group", Payload: []byte("multi-conn"),
-		})
+		}); err != nil {
+			t.Fatalf("WritePublish: %v", err)
+		}
 	}
 	for range 6 {
 		ft, _ := awaitFrame(t, pubFch, time.Second)
@@ -470,9 +496,11 @@ func TestE2E_PublishWithoutSubscriber(t *testing.T) {
 	go b.handleConnection(conn)
 
 	for range 50 {
-		w.WritePublish(protocol.PublishFrame{
+		if err := w.WritePublish(protocol.PublishFrame{
 			Queue: "test-q", Group: "no-sub-group", Payload: []byte("queued"),
-		})
+		}); err != nil {
+			t.Fatalf("WritePublish: %v", err)
+		}
 	}
 
 	for range 50 {

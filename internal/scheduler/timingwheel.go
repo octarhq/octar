@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/83codes/octar/internal/xtime"
+	"github.com/octarhq/octar/internal/xtime"
 )
 
 // timerTask is a node in the timing wheel's per-bucket linked list.

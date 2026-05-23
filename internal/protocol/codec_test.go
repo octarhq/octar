@@ -806,8 +806,8 @@ func TestDecodeFrameAfterResidual(t *testing.T) {
 	enc2.Flush()
 
 	dec := NewDecoder(&buf)
-	dec.ReadFrame()
-	dec.ReadFrame()
+	_, _, _ = dec.ReadFrame()
+	_, _, _ = dec.ReadFrame()
 	_, _, err := dec.ReadFrame()
 	if err == nil {
 		t.Fatal("expected error after consuming both frames + residual should fail")
@@ -906,19 +906,19 @@ func TestConcurrentEncodeDecodeStress(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			enc.WritePublish(PublishFrame{
+			_ = enc.WritePublish(PublishFrame{
 				Queue: "stress-q", Group: "stress-g", Payload: []byte("hello"),
 			})
 		}()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			enc.WriteACK(ACKFrame{MsgID: "m", Queue: "stress-q", Group: "stress-g"})
+			_ = enc.WriteACK(ACKFrame{MsgID: "m", Queue: "stress-q", Group: "stress-g"})
 		}()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			enc.WriteHeartbeat()
+			_ = enc.WriteHeartbeat()
 		}()
 	}
 	wg.Wait()
@@ -926,7 +926,7 @@ func TestConcurrentEncodeDecodeStress(t *testing.T) {
 
 	dec := NewDecoder(&buf)
 	for range 150 {
-		dec.ReadFrame()
+		_, _, _ = dec.ReadFrame()
 	}
 }
 
@@ -949,7 +949,7 @@ func TestEmptyQueueGroupNamesRejected(t *testing.T) {
 func TestDecodePartialFrame(t *testing.T) {
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
-	enc.WriteHeartbeat()
+	_ = enc.WriteHeartbeat()
 	enc.Flush()
 
 	full := buf.Bytes()

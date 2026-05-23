@@ -1,6 +1,6 @@
 package main
 
-import "github.com/83codes/octar/internal/cli"
+import "github.com/octarhq/octar/internal/cli"
 
 func main() {
 	cli.Execute()
