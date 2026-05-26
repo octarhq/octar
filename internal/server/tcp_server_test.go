@@ -153,12 +153,14 @@ func TestTCPServer_ActiveConnsDecrementedOnDisconnect(t *testing.T) {
 	conn.Close()
 	close(handlerDone)
 
-	deadline := time.Now().Add(500 * time.Millisecond)
+	// bcrypt on a loaded CI runner can take ~1-2s; poll long enough to let
+	// handleConn finish auth and return before we check the counter.
+	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		if s.ActiveConns() == 0 {
 			break
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(20 * time.Millisecond)
 	}
 
 	if s.ActiveConns() != 0 {
@@ -218,9 +220,10 @@ func TestTCPServer_HandleConnAuthFailure(t *testing.T) {
 		Username: "admin", Password: "wrong-password", Namespace: "main",
 	})
 
+	// bcrypt on a loaded CI runner can take ~1-2s; give enough headroom.
 	select {
 	case <-done:
-	case <-time.After(5 * time.Second):
+	case <-time.After(10 * time.Second):
 		t.Fatal("handleConn did not return after auth failure")
 	}
 }
@@ -275,9 +278,10 @@ func TestTCPServer_HandleConnHandlerPanic(t *testing.T) {
 		Username: "admin", Password: "testpass123!", Namespace: "main",
 	})
 
+	// bcrypt on a loaded CI runner can take ~1-2s; give enough headroom.
 	select {
 	case <-done:
-	case <-time.After(time.Second):
+	case <-time.After(10 * time.Second):
 		t.Fatal("handleConn did not return after handler panic")
 	}
 }
