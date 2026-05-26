@@ -1,0 +1,247 @@
+name: Docker
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/${{ github.repository_owner }}/octar
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write  # for cosign keyless signing
+  attestations: write
+
+jobs:
+  # ── Test gate — must pass before any image is built or pushed ─────────────────
+  test:
+    name: Test gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test (race)
+        run: go test -race -timeout 120s ./...
+
+  # ── Slim variant (debian:bookworm-slim) — also tagged as "latest" ─────────────
+  slim:
+    needs: test
+    name: Build slim
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU (multi-arch)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata — slim tags
+        id: meta-slim
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            # slim-vMAJOR.MINOR.PATCH
+            type=semver,pattern=slim-v{{version}}
+            # slim-vMAJOR.MINOR
+            type=semver,pattern=slim-v{{major}}.{{minor}}
+            # slim-vMAJOR
+            type=semver,pattern=slim-v{{major}},enable=${{ !startsWith(github.ref_name, 'v0.') }}
+            # slim (floating)
+            type=raw,value=slim
+            # vMAJOR.MINOR.PATCH
+            type=semver,pattern=v{{version}}
+            # vMAJOR.MINOR
+            type=semver,pattern=v{{major}}.{{minor}}
+            # vMAJOR
+            type=semver,pattern=v{{major}},enable=${{ !startsWith(github.ref_name, 'v0.') }}
+            # latest (floating, always points to slim)
+            type=raw,value=latest
+
+      - name: Build and push — slim
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.slim
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-slim.outputs.tags }}
+          labels: ${{ steps.meta-slim.outputs.labels }}
+          cache-from: type=gha,scope=slim
+          cache-to: type=gha,mode=max,scope=slim
+          provenance: true
+          sbom: true
+
+      - name: Sign image with cosign (keyless)
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign
+        run: |
+          cosign sign --yes \
+            ${{ env.IMAGE }}@${{ steps.push.outputs.digest }}
+
+      - name: Attest image
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+  # ── Alpine variant (alpine:3.23) ──────────────────────────────────────────────
+  alpine:
+    name: Build alpine
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU (multi-arch)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata — alpine tags
+        id: meta-alpine
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            # alpine-vMAJOR.MINOR.PATCH
+            type=semver,pattern=alpine-v{{version}}
+            # alpine-vMAJOR.MINOR
+            type=semver,pattern=alpine-v{{major}}.{{minor}}
+            # alpine-vMAJOR
+            type=semver,pattern=alpine-v{{major}},enable=${{ !startsWith(github.ref_name, 'v0.') }}
+            # alpine (floating)
+            type=raw,value=alpine
+
+      - name: Build and push — alpine
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-alpine.outputs.tags }}
+          labels: ${{ steps.meta-alpine.outputs.labels }}
+          cache-from: type=gha,scope=alpine
+          cache-to: type=gha,mode=max,scope=alpine
+          provenance: true
+          sbom: true
+
+      - name: Sign image with cosign (keyless)
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign
+        run: |
+          cosign sign --yes \
+            ${{ env.IMAGE }}@${{ steps.push.outputs.digest }}
+
+      - name: Attest image
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+  # ── Trivy scan — both images ──────────────────────────────────────────────────
+  scan:
+    name: Trivy scan
+    needs: [slim, alpine]
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    strategy:
+      matrix:
+        include:
+          - variant: slim
+            digest: ${{ needs.slim.outputs.digest }}
+          - variant: alpine
+            digest: ${{ needs.alpine.outputs.digest }}
+    steps:
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE }}@${{ matrix.digest }}
+          format: sarif
+          output: trivy-${{ matrix.variant }}.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+        continue-on-error: true  # upload SARIF even on findings
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-${{ matrix.variant }}.sarif
+          category: trivy-${{ matrix.variant }}
+
+  # ── Release summary ───────────────────────────────────────────────────────────
+  summary:
+    name: Summary
+    needs: [slim, alpine, scan]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write summary
+        run: |
+          TAG="${{ github.ref_name }}"
+          MAJOR=$(echo "$TAG" | cut -d. -f1)
+          MINOR=$(echo "$TAG" | cut -d. -f1-2)
+
+          echo "## 🐳 Docker images published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Slim (debian:bookworm-slim) — \`latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "| Tag | Image |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| latest | \`${{ env.IMAGE }}:latest\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| slim | \`${{ env.IMAGE }}:slim\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| slim-$TAG | \`${{ env.IMAGE }}:slim-$TAG\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| slim-$MINOR | \`${{ env.IMAGE }}:slim-$MINOR\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| slim-$MAJOR | \`${{ env.IMAGE }}:slim-$MAJOR\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| $TAG | \`${{ env.IMAGE }}:$TAG\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| $MINOR | \`${{ env.IMAGE }}:$MINOR\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| $MAJOR | \`${{ env.IMAGE }}:$MAJOR\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Alpine (alpine:3.23)" >> $GITHUB_STEP_SUMMARY
+          echo "| Tag | Image |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| alpine | \`${{ env.IMAGE }}:alpine\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| alpine-$TAG | \`${{ env.IMAGE }}:alpine-$TAG\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| alpine-$MINOR | \`${{ env.IMAGE }}:alpine-$MINOR\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| alpine-$MAJOR | \`${{ env.IMAGE }}:alpine-$MAJOR\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> Images signed with [cosign](https://sigstore.dev) keyless OIDC and build provenance attested." >> $GITHUB_STEP_SUMMARY

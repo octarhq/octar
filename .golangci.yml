@@ -1,0 +1,71 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck        # unchecked errors
+    - gosimple        # simplification suggestions
+    - govet           # go vet checks
+    - ineffassign     # ineffectual assignments
+    - staticcheck     # static analysis
+    - unused          # unused code
+    - gosec           # security issues
+    - bodyclose       # unclosed HTTP response bodies
+    - contextcheck    # context propagation
+    - cyclop          # cyclomatic complexity
+    - dupl            # code duplication
+    - exhaustive      # missing enum cases in switch
+    - exportloopref   # capturing loop variables
+    - gocritic        # opinionated checks
+    - gofmt           # formatting
+    - goimports       # import grouping
+    - misspell        # typos
+    - noctx           # http calls without context
+    - prealloc        # slice pre-allocation
+    - predeclared     # shadowing predeclared identifiers
+    - revive          # drop-in golint replacement
+    - unconvert       # unnecessary type conversions
+    - unparam         # unused function parameters
+    - whitespace      # trailing whitespace
+
+linters-settings:
+  cyclop:
+    max-complexity: 15
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+
+  gosec:
+    excludes:
+      - G115  # integer overflow (too noisy for message-length math)
+
+  revive:
+    rules:
+      - name: exported
+        arguments:
+          - checkPrivateReceivers
+          - disableStutteringCheck
+
+  misspell:
+    locale: US
+
+issues:
+  exclude-rules:
+    # Test files can use t.Fatal, t.Error, fmt.Printf freely.
+    - path: _test\.go
+      linters:
+        - errcheck
+        - dupl
+        - gosec
+        - unparam
+
+    # Examples can use panic and fmt.Println.
+    - path: examples/
+      linters:
+        - gosec
+        - errcheck
+
+  max-issues-per-linter: 0
+  max-same-issues: 0

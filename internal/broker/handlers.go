@@ -122,7 +122,29 @@ func (b *Broker) onSubscribe(conn *server.Connection, f protocol.SubscribeFrame)
 	)
 
 	q := b.Scheduler.GetQueue(conn.Session.Namespace, f.Queue)
-	if q != nil {
+	if q == nil {
+		return
+	}
+
+	if isGlobPattern(f.Group) {
+		// Wildcard subscriber: activate every existing group in the queue so that
+		// any messages already pending are dispatched immediately, rather than
+		// sitting idle until the next publish arrives.
+		//
+		// PageGroupStats caps at 1 000 per call; loop until exhausted.
+		cursor := ""
+		const pageSize = 1000
+		for {
+			stats, next := q.PageGroupStats(cursor, pageSize)
+			for _, gs := range stats {
+				b.Scheduler.Activate(q, gs.Key)
+			}
+			if next == "" {
+				break
+			}
+			cursor = next
+		}
+	} else {
 		b.Scheduler.Activate(q, f.Group)
 	}
 }
