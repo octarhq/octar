@@ -95,12 +95,17 @@ func (b *Broker) dispatch(msg *queue.Message) bool {
 		return false
 	}
 
+	// Snapshot Attempts before WriteMessage — once the frame is on the wire
+	// the subscriber may NACK and group.fail() will mutate msg.Attempts
+	// concurrently, causing a data race on the log line below.
+	attempts := msg.Attempts + 1
+
 	err := conn.WriteMessage(protocol.MessageFrame{
 		MsgID:    msg.ID,
 		Queue:    msg.QueueName,
 		Group:    msg.GroupKey,
 		Payload:  msg.Payload,
-		Attempts: int32(msg.Attempts + 1),
+		Attempts: int32(attempts),
 	})
 	if err != nil {
 		b.logger.Debug("failed to write message, returning to pending",
@@ -139,7 +144,7 @@ func (b *Broker) dispatch(msg *queue.Message) bool {
 			"msgID", msg.ID,
 			"queue", msg.QueueName,
 			"group", msg.GroupKey,
-			"attempts", msg.Attempts+1,
+			"attempts", attempts,
 		)
 	}
 	return true

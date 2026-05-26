@@ -221,13 +221,13 @@ func TestRunOnlyOnce(t *testing.T) {
 	s := NewScheduler()
 	defer s.Stop()
 
-	calls := 0
+	var calls atomic.Int64
 	s.Run(func(msg *queue.Message) bool {
-		calls++
+		calls.Add(1)
 		return true
 	})
 	s.Run(func(msg *queue.Message) bool {
-		calls++
+		calls.Add(1)
 		return true
 	})
 
@@ -238,8 +238,8 @@ func TestRunOnlyOnce(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	if calls != 1 {
-		t.Fatalf("dispatch should be called exactly once, got %d calls", calls)
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("dispatch should be called exactly once, got %d calls", got)
 	}
 }
 

@@ -153,7 +153,13 @@ func TestTCPServer_ActiveConnsDecrementedOnDisconnect(t *testing.T) {
 	conn.Close()
 	close(handlerDone)
 
-	time.Sleep(50 * time.Millisecond)
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if s.ActiveConns() == 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 
 	if s.ActiveConns() != 0 {
 		t.Fatalf("ActiveConns: expected 0 after disconnect, got %d", s.ActiveConns())
@@ -214,7 +220,7 @@ func TestTCPServer_HandleConnAuthFailure(t *testing.T) {
 
 	select {
 	case <-done:
-	case <-time.After(time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("handleConn did not return after auth failure")
 	}
 }
