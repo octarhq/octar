@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/octarhq/octar/compare/v0.1.1...v0.1.2) (2026-05-26)
+
+
+### 🐛 Bug Fixes
+
+* resolve data races and golangci-lint config ([db94597](https://github.com/octarhq/octar/commit/db945970df3b77d336f5f42653c6f0aa510a153c))
+
 ## [0.1.1](https://github.com/octarhq/octar/compare/v0.1.0...v0.1.1) (2026-05-26)
 
 
