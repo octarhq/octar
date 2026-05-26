@@ -970,13 +970,15 @@ func TestWAL_ChannelFull(t *testing.T) {
 
 	qw := w.getQueueWAL("ns", "q")
 
+	// Stop the original writer loop FIRST — it reads qw.ch on every
+	// select iteration, so we must not touch qw.ch while it is running.
 	origCh := qw.ch
-	tinyCh := make(chan Event, 2)
-	qw.ch = tinyCh
-	// stop original writer loop (reads from the old channel)
 	close(qw.stop)
 	<-qw.done
-	// start new writer loop for the tiny channel
+
+	// Now safe to swap the channel (no goroutine is reading qw.ch).
+	tinyCh := make(chan Event, 2)
+	qw.ch = tinyCh
 	qw.stop = make(chan struct{})
 	qw.done = make(chan struct{})
 	go qw.writerLoop()
@@ -992,13 +994,11 @@ func TestWAL_ChannelFull(t *testing.T) {
 		t.Fatal("expected 'channel full' error")
 	}
 
-	// Stop the tiny-channel writer loop before touching qw.ch so the
-	// writerLoop goroutine never races on the field assignment below.
+	// Stop tiny-channel loop before restoring origCh.
 	close(qw.stop)
 	<-qw.done
 
-	// Restore the original channel and restart the writer so t.Cleanup
-	// (safeClose) can drain it cleanly.
+	// Restore so t.Cleanup (safeClose) can drain cleanly.
 	qw.ch = origCh
 	qw.stop = make(chan struct{})
 	qw.done = make(chan struct{})
