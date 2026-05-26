@@ -60,6 +60,7 @@ jobs:
           version: latest
           install-mode: goinstall   # builds lint with the project's own Go toolchain
           args: --timeout=5m
+          only-new-issues: true     # report only issues in changed lines, not pre-existing ones
 
   # ── Vulnerability scan ───────────────────────────────────────────────────────
   vuln:
