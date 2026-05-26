@@ -992,7 +992,17 @@ func TestWAL_ChannelFull(t *testing.T) {
 		t.Fatal("expected 'channel full' error")
 	}
 
+	// Stop the tiny-channel writer loop before touching qw.ch so the
+	// writerLoop goroutine never races on the field assignment below.
+	close(qw.stop)
+	<-qw.done
+
+	// Restore the original channel and restart the writer so t.Cleanup
+	// (safeClose) can drain it cleanly.
 	qw.ch = origCh
+	qw.stop = make(chan struct{})
+	qw.done = make(chan struct{})
+	go qw.writerLoop()
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

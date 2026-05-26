@@ -1,5 +1,3 @@
-version: "2"
-
 linters:
   enable:
     - errcheck
@@ -23,30 +21,35 @@ linters:
     - unparam
     - whitespace
 
-  settings:
-    cyclop:
-      max-complexity: 15
+linters-settings:
+  cyclop:
+    max-complexity: 15
 
-    gocritic:
-      enabled-tags:
-        - diagnostic
-        - style
-        - performance
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
 
-    gosec:
-      excludes:
-        - G115
+  gosec:
+    excludes:
+      - G115
 
-    revive:
-      rules:
-        - name: exported
-          arguments:
-            - checkPrivateReceivers
-            - disableStutteringCheck
+  revive:
+    rules:
+      - name: exported
+        arguments:
+          - checkPrivateReceivers
+          - disableStutteringCheck
 
-    misspell:
-      locale: US
+  misspell:
+    locale: US
 
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
+  exclude-rules:
+    - path: _test\.go
+      linters: [errcheck, dupl, gosec, unparam]
+    - path: examples/
+      linters: [gosec, errcheck]

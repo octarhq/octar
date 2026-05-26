@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 )
 
 type tokenBucket struct {
+	mu       sync.Mutex
 	capacity float64
 	tokens   float64
 	rate     float64
@@ -31,6 +33,8 @@ func newTokenBucket(rate float64, burst int) *tokenBucket {
 }
 
 func (tb *tokenBucket) allow() bool {
+	tb.mu.Lock()
+	defer tb.mu.Unlock()
 	now := time.Now()
 	elapsed := now.Sub(tb.last).Seconds()
 	tb.last = now
