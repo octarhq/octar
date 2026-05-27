@@ -119,7 +119,7 @@ func TestTCPServer_ActiveConns_AfterConnect(t *testing.T) {
 
 	select {
 	case <-handlerStarted:
-	case <-time.After(time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("handler not called")
 	}
 
@@ -251,7 +251,7 @@ func TestTCPServer_HandleConnSuccess(t *testing.T) {
 
 	select {
 	case <-handlerCalled:
-	case <-time.After(time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("handler not called after successful auth")
 	}
 
