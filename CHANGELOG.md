@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/octarhq/octar/compare/v0.1.4...v0.1.5) (2026-05-27)
+
+
+### ✨ Features
+
+* add workflow dispatch input for Docker build and trigger Docker workflow on new tag ([bf73a91](https://github.com/octarhq/octar/commit/bf73a9149d7ebdbca7d44c551f73b5ff622ef83d))
+
 ## [0.1.4](https://github.com/octarhq/octar/compare/v0.1.3...v0.1.4) (2026-05-27)
 
 
