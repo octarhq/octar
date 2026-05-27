@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/octarhq/octar/compare/v0.1.5...v0.1.6) (2026-05-27)
+
+
+### ♻️ Refactoring
+
+* update Docker workflow trigger to use release events ([260fca9](https://github.com/octarhq/octar/commit/260fca9f71d01f6cfb8969346afd8bcda0180c82))
+
 ## [0.1.5](https://github.com/octarhq/octar/compare/v0.1.4...v0.1.5) (2026-05-27)
 
 
