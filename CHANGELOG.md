@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.3](https://github.com/octarhq/octar/compare/v0.1.2...v0.1.3) (2026-05-26)
+
+
+### 🐛 Bug Fixes
+
+* correct WAL ChannelFull test race — stop loop before swapping channel ([a6c9188](https://github.com/octarhq/octar/commit/a6c91886b552a88116a22d4b38d8a9a8246e822a))
+* extend TCP server test timeouts to survive bcrypt on slow CI runners ([ee33a85](https://github.com/octarhq/octar/commit/ee33a852ab9e58d74351500ecb46f496eb6d30d5))
+* resolve data races and flaky test timings detected by -race on Linux ([32fb7bd](https://github.com/octarhq/octar/commit/32fb7bddb22babff46145958e218818705a43089))
+
 ## [0.1.2](https://github.com/octarhq/octar/compare/v0.1.1...v0.1.2) (2026-05-26)
 
 
