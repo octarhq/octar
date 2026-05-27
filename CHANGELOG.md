@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/octarhq/octar/compare/v0.1.3...v0.1.4) (2026-05-27)
+
+
+### 🐛 Bug Fixes
+
+* increase timeout for handler calls in TCP server tests to improve reliability ([ed019ba](https://github.com/octarhq/octar/commit/ed019ba5bc12b8b619ef86710a63f7abd92bc61a))
+
 ## [0.1.3](https://github.com/octarhq/octar/compare/v0.1.2...v0.1.3) (2026-05-26)
 
 
