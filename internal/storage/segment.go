@@ -91,12 +91,20 @@ func (q *QueueWAL) rotateSegment() error {
 
 	// Close old files only after the new ones are open.
 	if oldFile != nil {
-		oldLogBuf.Flush()
-		oldFile.Close()
+		if err := oldLogBuf.Flush(); err != nil {
+			return fmt.Errorf("wal: flush log buffer: %w", err)
+		}
+		if err := oldFile.Close(); err != nil {
+			return fmt.Errorf("wal: close log segment: %w", err)
+		}
 	}
 	if oldIdxFile != nil {
-		oldIdxBuf.Flush()
-		oldIdxFile.Close()
+		if err := oldIdxBuf.Flush(); err != nil {
+			return fmt.Errorf("wal: flush index buffer: %w", err)
+		}
+		if err := oldIdxFile.Close(); err != nil {
+			return fmt.Errorf("wal: close index segment: %w", err)
+		}
 	}
 
 	q.logger.Info("wal segment rotated", "segment", q.segmentID, "dir", q.dir)

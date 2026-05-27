@@ -2,6 +2,7 @@ package providers
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -13,8 +14,9 @@ import (
 )
 
 type APIKeyAuthenticator struct {
-	cfg     config.APIKeyProviderConfig
-	keyHash map[string]*APIKeyEntry
+	cfg        config.APIKeyProviderConfig
+	hashSecret []byte
+	keyHash    map[string]*APIKeyEntry
 }
 
 type APIKeyEntry struct {
@@ -28,8 +30,9 @@ type APIKeyEntry struct {
 
 func NewAPIKeyAuthenticator(cfg config.APIKeyProviderConfig) *APIKeyAuthenticator {
 	return &APIKeyAuthenticator{
-		cfg:     cfg,
-		keyHash: make(map[string]*APIKeyEntry),
+		cfg:        cfg,
+		hashSecret: []byte(cfg.HashSecret),
+		keyHash:    make(map[string]*APIKeyEntry),
 	}
 }
 
@@ -53,7 +56,7 @@ func (a *APIKeyAuthenticator) Authenticate(ctx context.Context, req authenticato
 		return nil, "", nil
 	}
 
-	keyHash := hashKey(key)
+	keyHash := hashKey(key, a.hashSecret)
 	entry, ok := a.keyHash[keyHash]
 	if !ok {
 		return nil, "", nil
@@ -79,7 +82,7 @@ func (a *APIKeyAuthenticator) Authenticate(ctx context.Context, req authenticato
 
 func (a *APIKeyAuthenticator) AddKey(key, subjectID, namespace string, perms []string) {
 	entry := &APIKeyEntry{
-		Hash:        hashKey(key),
+		Hash:        hashKey(key, a.hashSecret),
 		SubjectID:   subjectID,
 		SubjectType: identity.SubjectService,
 		Namespace:   namespace,
@@ -90,7 +93,7 @@ func (a *APIKeyAuthenticator) AddKey(key, subjectID, namespace string, perms []s
 }
 
 func (a *APIKeyAuthenticator) RevokeKey(key string) {
-	keyHash := hashKey(key)
+	keyHash := hashKey(key, a.hashSecret)
 	delete(a.keyHash, keyHash)
 }
 
@@ -102,9 +105,13 @@ func (a *APIKeyAuthenticator) ListKeys() []APIKeyEntry {
 	return result
 }
 
-func hashKey(key string) string {
-	h := sha256.Sum256([]byte(key))
-	return hex.EncodeToString(h[:])
+// hashKey derives a keyed hash of the API key using HMAC-SHA256.
+// Using a server-side secret prevents offline dictionary attacks against
+// a stolen hash store.
+func hashKey(key string, secret []byte) string {
+	mac := hmac.New(sha256.New, secret)
+	mac.Write([]byte(key))
+	return hex.EncodeToString(mac.Sum(nil))
 }
 
 func GenerateAPIKey(prefix string) string {

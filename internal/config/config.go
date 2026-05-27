@@ -115,9 +115,10 @@ type PasswordProviderConfig struct {
 }
 
 type APIKeyProviderConfig struct {
-	Enabled  bool   `mapstructure:"enabled"`
-	Priority int    `mapstructure:"priority"`
-	Prefix   string `mapstructure:"prefix"`
+	Enabled    bool   `mapstructure:"enabled"`
+	Priority   int    `mapstructure:"priority"`
+	Prefix     string `mapstructure:"prefix"`
+	HashSecret string `mapstructure:"hash_secret"`
 }
 
 type JWTProviderConfig struct {
